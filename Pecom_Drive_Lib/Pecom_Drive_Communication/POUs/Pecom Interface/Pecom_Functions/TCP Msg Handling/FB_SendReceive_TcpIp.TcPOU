@@ -1,0 +1,225 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SendReceive_TcpIp" Id="{b43064ac-5423-431f-8386-c70e3e2dc626}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK   FB_SendReceive_TcpIp
+VAR_INPUT	
+    iConnected	: BOOL;
+	nPecom_Tnr_Remote_1	: INT;		// pecom member number of the remote partner (LST or PLC)
+	nPecom_Tnr_Remote_2	: INT;		// pecom member number of the remote partner (LST or PLC)
+	nPecom_Tnr_Local	: INT;		// Own pecom member number for the member anouncement (Teilnehmerauskunft)
+END_VAR
+VAR_IN_OUT	
+	S_BUF_A				:	NETWORK_BUFFER;
+	R_BUF_A				:	NETWORK_BUFFER;
+END_VAR
+
+VAR
+	IP_TNA				:	ST_MemberAnounce;
+	Rec_Buffer			:	ARRAY [0..1400] OF WORD;
+	R_TRIG_Connected	:	R_TRIG;
+	k					:	INT;
+	N					:	INT;
+	i					:	INT;
+	M					:	INT;
+	message_in			:	BOOL;
+	buffer_length		:	INT;
+	nPointer			:	INT;
+	msg_count			:	INT;
+	nMSG_Length			:	INT;
+	IN_pointer			:	INT;
+	counter				:	INT;
+	nCountMessage		:	INT;	
+	state				:	INT;
+	start_init			:	BOOL;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(************************************************************************************************************)
+(*********** 		Ethernet Communication 														*************)
+(************************************************************************************************************)
+
+(* Ethernetverbindung aufbauen *)
+(* This is for connecting over the Ethernet. The first desk is called "A". Normally this is the Pecom number 71. *)
+(* The Oscat library works with the IP_C and with IP_Control *)
+(* For sending a message we have to fill the buffer and after that write into S_BUF_A.SIZE the length *)
+(* this is the command for sending the buffer *)
+(* to look for an incoming message we have to lokk into R_BUF_A.SIZE and if it is not zero we have a new message *)
+(* The Byte must be switched to get them into a Word *)
+
+(*************************************)
+(* Connection *)
+R_TRIG_Connected(CLK:=	iConnected);
+start_init :=	R_TRIG_Connected.Q;
+
+
+(************************************************************************************************************)
+(*********** 		Ethernetkommunikation 														*************)
+(************************************************************************************************************)
+(* This is on a low level of the Pecom communication *)
+(* after starting a new connection we have to tell the remote partner what Pecom number we have and the partner *)  
+(* system takes this number into his own member list *)
+(* with this message the remote partner system can do the relationsship from the IP adress to the member number *)
+(* sender and receiver is always 65535, only for this message the type is 7, normally this is 153 *)
+
+(******************************************************)
+(* Pecom Member Announcement/ build the message 65535 *)
+(******************************************************)
+CASE	state OF
+	00:
+		IF start_init THEN
+			state := state + 2;	
+		END_IF
+	02:
+	
+		IP_TNA.Laenge := WORD#12;
+		IP_TNA.receiver := WORD#65535;
+		IP_TNA.Sender := WORD#65535;
+		IP_TNA.Typ := WORD#7; (*must be 7 not 153 *)
+		IP_TNA.Reserve := WORD#0;
+		IP_TNA.N_Laenge := WORD#02;
+		IP_TNA.Kommando := INT_TO_WORD(nPecom_Tnr_Local);
+		state := 10;
+	
+	10:
+		R_BUF_A.SIZE	:=	UINT#0;	// Reset the Receiver Buffer, so rest will not be read
+	
+	
+		S_BUF_A.BUFFER[0] := WORD_TO_BYTE(SHR(IP_TNA.receiver,8));
+		S_BUF_A.BUFFER[1] := WORD_TO_BYTE(IP_TNA.receiver);
+		S_BUF_A.BUFFER[2] := WORD_TO_BYTE(SHR(IP_TNA.Sender,8));
+		S_BUF_A.BUFFER[3] := WORD_TO_BYTE(IP_TNA.Sender);
+	
+		S_BUF_A.BUFFER[4] := WORD_TO_BYTE(SHR(IP_TNA.Typ,8));
+		S_BUF_A.BUFFER[5] := WORD_TO_BYTE(IP_TNA.Typ);
+	
+		S_BUF_A.BUFFER[6] := WORD_TO_BYTE(SHR(IP_TNA.Reserve,8));
+		S_BUF_A.BUFFER[7] := WORD_TO_BYTE(IP_TNA.Reserve);
+	
+		S_BUF_A.BUFFER[8] := WORD_TO_BYTE(SHR(IP_TNA.N_Laenge,8));
+		S_BUF_A.BUFFER[9] := WORD_TO_BYTE(IP_TNA.N_Laenge);
+	
+		S_BUF_A.BUFFER[10] := WORD_TO_BYTE(SHR(IP_TNA.Kommando,8));
+		S_BUF_A.BUFFER[11] := WORD_TO_BYTE(IP_TNA.Kommando);
+	
+	
+		S_BUF_A.SIZE := (IP_TNA.Laenge);
+	state	:=	30;
+	
+	30:
+		state	:=	0;
+
+END_CASE;
+
+
+(************************************************************************************************************)
+(********** Send                                           											*********)
+(************************************************************************************************************)
+(* TCP *)
+
+k	:=	0;
+IF	S_BUF_A.SIZE	=	UINT#0
+THEN
+	FOR	N := 1 TO	40
+	DO
+		IF	st_OUT_PecomMsg.valid[N]
+			AND	(st_OUT_PecomMsg.stMsgBuffer[N].MSG[0]	=	INT_TO_WORD(nPecom_Tnr_Remote_1)
+				OR st_OUT_PecomMsg.stMsgBuffer[N].MSG[0]	=	INT_TO_WORD(nPecom_Tnr_Remote_2))
+		THEN
+			st_OUT_PecomMsg.stMsgBuffer[N].MSG[1]	:= INT_TO_WORD(nPecom_Tnr_Local);
+			FOR	i	:= 0 TO (WORD_TO_INT(st_OUT_PecomMsg.stMsgBuffer[N].MSG[4]) / 2) + 4
+			DO
+				S_BUF_A.BUFFER[k]		:=	WORD_TO_BYTE(SHR(st_OUT_PecomMsg.stMsgBuffer[N].MSG[i],8));
+				k	:=	k + 1;
+				S_BUF_A.BUFFER[k]		:=	WORD_TO_BYTE(st_OUT_PecomMsg.stMsgBuffer[N].MSG[i]);
+				k	:=	k + 1;
+			END_FOR;
+			st_OUT_PecomMsg.number_of_buffers	:=	st_OUT_PecomMsg.number_of_buffers + 1;
+			st_OUT_PecomMsg.valid[N]	:=	FALSE;
+		END_IF;
+	END_FOR;
+		S_BUF_A.SIZE	:=	INT_TO_UINT(k);			(* send with write  into the size-Byte*)
+END_IF;
+
+(************************************************************************************************************)
+(********** Receive Messages																		*********)
+(************************************************************************************************************)
+(* TCP *)
+IF		R_BUF_A.SIZE >= UINT#1
+THEN	(* Clear and Read Receiver-Buffer first *)
+	FOR i := 0 TO 700 DO	// Clear
+		Rec_Buffer[i] := WORD#0;
+	END_FOR;
+	k	:= 0;
+	FOR i := 0 TO	UINT_TO_INT(R_BUF_A.SIZE)/2 DO // Read
+		Rec_Buffer[i]	:=	WORD_OF_BYTE(R_BUF_A.BUFFER[k],R_BUF_A.BUFFER[k+1]);
+		k	:= k + 2;
+	END_FOR;
+	message_in	:=	TRUE;
+	buffer_length	:=	UINT_TO_INT(R_BUF_A.SIZE)/2;
+	R_BUF_A.SIZE		:=	UINT#0;
+	counter	:=	counter + 1;		// Diagnose counter for incoming trafic
+
+END_IF;
+
+
+(************************************************************************************************************)
+(********** Sort incomming messages into the In-Buffer												*********)
+(************************************************************************************************************)
+(* Sort incomming messages into the In-Buffer                                   *)
+(* max. 40 incoming messages can be sorted in 1 cycle					        *)
+(* from IN_MSG1.MESS[1..40].MSG[0..49] 					                        *)
+(* In IN_MSG1.valid[1..40] steht für 1 Zyklus die validkeit                 	*)
+(********************************************************************************)
+
+(* in one message (in one buffer) can be a lot of normal Pecom messages *)
+(* so we have to look for them and sort them into extra buffers to work with them *)
+(* we have 40 extra buffers and if we have put a new Pecom message into one we have to set the Bit IN_MSG1.valid[M] *)
+(* this also usefull if the cycletime of the PLC is to slow. We never can loose a message if the numbers of the buffers are big anough *)
+
+IF message_in = TRUE THEN    
+	
+		nPointer := 0;
+		msg_count := 0;
+		
+		FOR M := 1 TO 40
+		DO
+			IF NOT st_IN_PecomMsg.valid[M]
+			THEN
+				IF buffer_length >= 6
+				THEN
+					nMSG_Length := msg_count + 4;
+					FOR IN_pointer := (0 + msg_count) TO (WORD_TO_INT(Rec_Buffer[nMSG_Length]) / 2) + 4 + msg_count
+					DO
+						nPointer := IN_pointer - msg_count;
+						st_IN_PecomMsg.stMsgBuffer[M].MSG[nPointer] := Rec_Buffer[IN_pointer];
+						buffer_length := buffer_length - 1;
+					END_FOR;
+					msg_count := IN_pointer;
+					st_IN_PecomMsg.valid[M] := TRUE;
+					nCountMessage := nCountMessage + 1;
+				END_IF;
+			END_IF;
+		END_FOR;
+		
+		IF buffer_length > 0
+		THEN
+			st_IN_PecomMsg.buffer_overfow := TRUE;
+		END_IF;
+	
+		st_IN_PecomMsg.number_of_buffers	:=	nCountMessage;
+		message_in := FALSE;
+END_IF;
+
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_SendReceive_TcpIp">
+      <LineId Id="2299" Count="88" />
+      <LineId Id="2478" Count="0" />
+      <LineId Id="2388" Count="87" />
+      <LineId Id="315" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,54 @@
+<TcModuleRefactorInfos RefactorCnt="3">
+  <TcModuleRefactorInfo RefactorCnt="1" DateTime="2025-07-25T12:14:34">
+    <Renames>
+      <RenameTypeItem>
+        <Type>FB_UDP_DriveCom</Type>
+        <From>S_BUF_UDP</From>
+        <To>S_BUF</To>
+      </RenameTypeItem>
+      <RenameTypeItem>
+        <Type>FB_UDP_DriveCom</Type>
+        <From>R_BUF_UDP</From>
+        <To>R_BUF</To>
+      </RenameTypeItem>
+    </Renames>
+  </TcModuleRefactorInfo>
+  <TcModuleRefactorInfo RefactorCnt="2" DateTime="2025-07-28T07:29:20">
+    <Renames>
+      <RenameTypeItem>
+        <Type>FB_UDP_DriveCom</Type>
+        <From>p_DriveData</From>
+        <To>p_UDP_DriveData</To>
+      </RenameTypeItem>
+      <RenameTypeItem>
+        <Type>FB_UDP_DriveCom</Type>
+        <From>in_count_A</From>
+        <To>nInPackageCount</To>
+      </RenameTypeItem>
+      <RenameTypeItem>
+        <Type>FB_UDP_DriveCom</Type>
+        <From>bTimeout_Con1</From>
+        <To>bTimeout</To>
+      </RenameTypeItem>
+      <RenameTypeItem>
+        <Type>FB_UDP_DriveCom</Type>
+        <From>TON_Timeout_SKS1</From>
+        <To>TON_Timeout</To>
+      </RenameTypeItem>
+    </Renames>
+  </TcModuleRefactorInfo>
+  <TcModuleRefactorInfo RefactorCnt="3" DateTime="2025-07-30T10:53:14">
+    <Renames>
+      <RenameTypeItem>
+        <Type>ST_SetupDriveComMDS</Type>
+        <From>nPLCMemberNr</From>
+        <To>nPLCMemberNr_1</To>
+      </RenameTypeItem>
+      <RenameTypeItem>
+        <Type>ST_SetupDriveComMDS</Type>
+        <From>nDriveMemberNr</From>
+        <To>nDriveMemberNr</To>
+      </RenameTypeItem>
+    </Renames>
+  </TcModuleRefactorInfo>
+</TcModuleRefactorInfos>

@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="Eth_Send_Receive" Id="{35b1333e-06df-4abc-9c9d-bff23473f3ae}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Eth_Send_Receive
+VAR
+	Ethernet_Receive_Objects:	FB_Msg_Receive;
+	Ethernet_Send_Objects:	FB_Msg_Send;
+
+	OBJ_receiver:	INT;
+	OBJ_Nachricht:	BOOL;
+	OBJ_Nachricht_senden:	BOOL;
+	OBJ_Nachricht_an_LST_A:	BOOL;
+
+	Test:	BOOL;
+
+	MSG_receiver: INT;
+	Ethernet_Send_LST_SH: FB_Msg_Send;
+END_VAR
+VAR_OUTPUT
+	SH_Nachricht_an_LST_A: BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[TCP_PecomOBJ();
+TCP_Alarms();
+]]></ST>
+    </Implementation>
+    <Action Name="TCP_Alarms" Id="{0af7e2ff-2cc9-4f49-b6f0-57f8eb01cf54}">
+      <Implementation>
+        <ST><![CDATA[(*-- Send MSG --*)
+IF	MSG_receiver = 0
+	AND NOT st_OUT_Alarms_Buffer.data_transfer_ready
+	AND st_OUT_Alarms_Buffer.data_are_valid	
+	THEN	
+		MSG_receiver 			:= 	st_OUT_Alarms_Buffer.receiver;
+END_IF;
+
+IF		MSG_receiver = 0
+	THEN	
+		IF	st_OUT_Alarms_Buffer.data_are_valid
+			THEN
+				st_OUT_Alarms_Buffer.receiver 			:= 	INT#0;
+				st_OUT_Alarms_Buffer.data_are_valid 	:= 	FALSE;
+		END_IF;
+END_IF;
+
+Ethernet_Send_LST_SH ( 	receiver 	:= 	MSG_receiver,
+				       	Sender	  	:= 	st_OUT_Alarms_Buffer.Sender,
+				       	Freigabe	:= 	st_OUT_Alarms_Buffer.data_are_valid,
+				       	Typ		  	:= 	'TCP',
+				       	Puffer	  	:= 	st_OUT_Alarms_Buffer);
+st_OUT_Alarms_Buffer.nNumber_of_messages; 	(*Diagnose*)
+st_OUT_Alarms_Buffer.nNumber_of_Error; 		(*Diagnose*)
+
+
+IF	(	st_OUT_Alarms_Buffer.job_done
+	OR	st_OUT_Alarms_Buffer.job_not_done )
+	AND	st_OUT_Alarms_Buffer.data_transfer_ready
+	THEN	(* message done *)
+		MSG_receiver 							:= 0;
+		st_OUT_Alarms_Buffer.data_transfer_ready 	:= FALSE;
+		st_OUT_Alarms_Buffer.receiver 				:= INT#0;
+		st_OUT_Alarms_Buffer.data_are_valid 		:= FALSE;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="TCP_PecomOBJ" Id="{43ffd3f5-3b7f-496e-a0c7-77f7a2e1d6f7}">
+      <Implementation>
+        <ST><![CDATA[(*--- Receive  ---*)
+Ethernet_Receive_Objects(	Freigabe	:= TRUE,
+							Typ			:= 'TCP',
+							Puffer		:= st_IN_Objects);
+
+st_IN_Objects.nNumber_of_messages := st_IN_Objects.nNumber_of_messages; (*Diagnose*)
+
+
+(*--------------------------------------------------------------------------------------------------*)
+(*-- Send  --*)
+IF		st_OUT_Objects_Buffer.receiver >	0
+	AND	OBJ_receiver = 0
+	AND	NOT	OBJ_Nachricht_senden
+	AND st_OUT_Objects_Buffer.data_are_valid	
+	THEN
+		OBJ_Nachricht	:= TRUE;
+		OBJ_receiver	:= st_OUT_Objects_Buffer.receiver;
+END_IF;
+
+(*-- 1 cycle later --*)
+OBJ_Nachricht_senden	:=	OBJ_receiver <> 0;
+
+Ethernet_Send_Objects(	receiver 	:= 	OBJ_receiver,
+				       	Sender	  	:= 	0,
+				       	Freigabe	:= 	OBJ_Nachricht_senden,
+				       	Typ		  	:= 	'TCP',
+				       	Puffer	  	:= 	st_OUT_Objects_Buffer);
+st_OUT_Objects_Buffer.nNumber_of_messages; 	(*Diagnose*)
+st_OUT_Objects_Buffer.nNumber_of_Error; 	(*Diagnose*)
+
+IF	(	st_OUT_Objects_Buffer.job_done
+	OR	st_OUT_Objects_Buffer.job_not_done)
+	AND st_OUT_Objects_Buffer.data_transfer_ready
+	THEN	
+		OBJ_receiver 									:= 	0;
+		st_OUT_Objects_Buffer.data_transfer_ready 		:=	FALSE;
+
+		IF 		OBJ_Nachricht
+			THEN
+				st_OUT_Objects_Buffer.data_are_valid	:=	FALSE;
+				st_OUT_Objects_Buffer.receiver			:=	INT#0;
+				OBJ_Nachricht 							:=	FALSE;
+		END_IF;
+END_IF;]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="Eth_Send_Receive">
+      <LineId Id="42" Count="1" />
+      <LineId Id="21" Count="0" />
+    </LineIds>
+    <LineIds Name="Eth_Send_Receive.TCP_Alarms">
+      <LineId Id="0" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="22" Count="22" />
+      <LineId Id="49" Count="1" />
+      <LineId Id="52" Count="1" />
+    </LineIds>
+    <LineIds Name="Eth_Send_Receive.TCP_PecomOBJ">
+      <LineId Id="0" Count="0" />
+      <LineId Id="7" Count="2" />
+      <LineId Id="16" Count="5" />
+      <LineId Id="38" Count="16" />
+      <LineId Id="56" Count="9" />
+      <LineId Id="69" Count="3" />
+      <LineId Id="74" Count="1" />
+      <LineId Id="85" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

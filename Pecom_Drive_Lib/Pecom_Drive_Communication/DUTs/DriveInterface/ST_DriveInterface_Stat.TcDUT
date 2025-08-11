@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_DriveInterface_Stat" Id="{eee5d5f5-b73d-4907-9559-3101fdd9a78f}">
+    <Declaration><![CDATA[TYPE ST_DriveInterface_Stat :
+STRUCT
+	bEnabled			:BOOL;			// drive is under power
+	
+	fActVel				:LREAL;			// acutal vel, untis/s
+	fActTorque			:LREAL;			// Actual Torque in %
+	fTemp				:REAL;			// actual motor temp
+	fI2T				:REAL;			// actual current overload accumulator in % when at 100% drive will trip  
+	
+	bZeroSpeed			:BOOL;			// motor at zerospeed (standstill)
+	
+	// Sync Feedback
+	bInSync				:BOOL;			// Drive is in Sync with master Axis
+	
+	// Error Handling
+	bError				:BOOL;			// has fault	
+	nErrorCode			:DINT;			// error code	
+	
+	//Positioning Mode
+    bAtModPos			:BOOL;			// set when in modulated position mode and at required pos	
+	fActPos				:LREAL;			// actual modulated position, units
+	
+	// Webtension Control Mode 
+	fWebTc_SpeedGain	:LREAL;		// WebTc	-> Speedgain in manual mode in permill * 100 (eg 0.01‰ * 100)
+	fWebTc_WebTension	:LREAL;		// WebTc	-> Webtension in N In Automode
+	
+	
+	// divers
+	bCoolingFanStarted	:BOOL;			// coolingfan running
+	bBrakeReleased		:BOOL;			// breake is off
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

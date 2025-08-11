@@ -1,0 +1,216 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_UDP_DriveCom" Id="{8b99813f-f90b-4db0-86d0-0c4c55c723b1}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_UDP_DriveCom
+VAR_INPUT
+	sRemote_IP			: T_IPv4Addr;
+	nDriveMemberNr		: INT;			// Own Pecom Member Nr. (Old MDS Nr)
+	nPLCMemberNr		: INT;			// PLC Pecom Member Nr.
+	p_UDP_DriveData		: POINTER TO ST_UDP_Drive_Data;
+	S_BUF				: POINTER TO ST_UDP_Buffer;		// UDP Send Buffer It is hand over to the UDP Socket 
+	R_BUF				: POINTER TO ST_UDP_Buffer;		// UDP Receive Buffer It comes from the UDP Socket 	
+
+END_VAR
+VAR_OUTPUT
+	bAlarmNoConnection	: BOOL;
+END_VAR
+
+VAR
+	nInPackageCount			: INT;
+	bTimeout				: BOOL;
+	TON_Timeout				: TON;
+	nStackPointer			: INT;
+	nDriveNumber			: INT;
+	
+	TO_PECOM				: ARRAY[0..650]	OF	WORD;
+	TO_PECOM_old			: ARRAY[0..650]	OF	WORD;
+	
+	
+	bSendRequest			: BOOL;
+	nMsgSize				: INT;
+	p						: INT;
+	i						: INT;
+	k						: UINT;
+	sIPTEST: STRING(15);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(************************************************************************************************)
+(*****				 					Ethernet UDP 										*****)
+(***** UDP Communication between the PLC <--> Drive System 									*****)
+(***** 																						*****)
+(************************************************************************************************)
+(*****			Time out or no connection after 7s of no Message		*****)
+//Set the Timeout for connection control
+bTimeout	:=	TRUE;
+// Reset the TimeOut when you received a valid UDP-package
+IF (R_BUF^.SIZE > 0 AND R_BUF^.Ip_Adresss = sRemote_IP) 
+THEN
+	bTimeout := FALSE;	
+	nInPackageCount	:=	nInPackageCount	+	1;		// Diagnose Only!!
+	sIPTEST	:= R_BUF^.Ip_Adresss;
+END_IF
+TON_Timeout(IN:= bTimeout, PT:=T#6S);
+bAlarmNoConnection	:=	TON_Timeout.Q;
+
+// Connection Flag in the UDP Buffer
+p_UDP_DriveData^.bConnectionState := NOT bAlarmNoConnection	;
+
+(****************************************************************************************)
+(***							Receive Messages									*****)
+(* If In-Buffer size is gt the 0 transfer the content to the  p_DriveData array			*)
+(* In 1 Msg can be max. 48 drives controlled. Each on is identified by its Sercos-Id	*)
+(****************************************************************************************)
+
+IF		(R_BUF^.SIZE > 0 AND R_BUF^.Ip_Adresss = sRemote_IP)
+THEN	
+	p_UDP_DriveData^.sRemote_IP_Adress	:= 	sRemote_IP;
+	p_UDP_DriveData^.nDriveMemberNr		:=	R_BUF^.nDriveMemberNr;	
+	p_UDP_DriveData^.nPLCMemberNr		:=	R_BUF^.nPLCMemberNr;
+	nStackPointer	:=	26;	// Pointer offset to the First drive information in the Msg
+	
+	FOR nDriveNumber	:= 0 TO 48
+				DO
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].nDriveSercos_Id		:=	WORD_TO_INT(WORD_OF_BYTE(R_BUF^.BUFFER[nStackPointer+1],R_BUF^.BUFFER[nStackPointer]));
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].nControlword 			:=	WORD_OF_BYTE(R_BUF^.BUFFER[nStackPointer+2],R_BUF^.BUFFER[nStackPointer+3]);
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].nSetpoint_speed 		:=	WORD_TO_INT(WORD_OF_BYTE(R_BUF^.BUFFER[nStackPointer+4],R_BUF^.BUFFER[nStackPointer+5]));
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].nSetpoint_Acceleration :=	WORD_TO_INT(WORD_OF_BYTE(R_BUF^.BUFFER[nStackPointer+6],R_BUF^.BUFFER[nStackPointer+7]));
+					
+					// Assign the Control bits
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].bHandShake				:=	p_UDP_DriveData^.aDriveData_In[nDriveNumber].nControlword.0;
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].bSyncRunMode			:=	p_UDP_DriveData^.aDriveData_In[nDriveNumber].nControlword.8;
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].bPositionMode			:=	p_UDP_DriveData^.aDriveData_In[nDriveNumber].nControlword.9;
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].bDriveEnable			:=	p_UDP_DriveData^.aDriveData_In[nDriveNumber].nControlword.14;
+					p_UDP_DriveData^.aDriveData_In[nDriveNumber].bDriveStop				:=	p_UDP_DriveData^.aDriveData_In[nDriveNumber].nControlword.15;
+
+					nStackPointer	:= nStackPointer +12;
+	END_FOR;		
+END_IF
+
+(****************************************************************************************)
+(***							Send Messages									*****)
+(* If In-Buffer size is gt the 0 transfer the content to the  p_DriveData array			*)
+(* In 1 Msg can be max. 48 drives controlled. Each on is identified by its Sercos-Id	*)
+(****************************************************************************************)
+TO_PECOM_old := TO_PECOM;
+(*****************************************************)
+(** Build the Header of the Message					**)
+(**	static part of the message 						**)
+(*****************************************************)
+
+TO_PECOM[0]		:=	INT_TO_WORD(nPLCMemberNr);
+TO_PECOM[1]		:=	INT_TO_WORD(nDriveMemberNr);
+TO_PECOM[2]		:=	WORD#153;
+TO_PECOM[3]		:=	WORD#0;
+TO_PECOM[4]		:=	WORD#600;	(* 12 Byte x 49 Drives *)
+TO_PECOM[5]		:=	WORD#10912;	(* Message Type	*)
+TO_PECOM[6]		:=	WORD#0;
+TO_PECOM[7]		:=	WORD#1;
+TO_PECOM[8]		:=	WORD#302;	(* OBJART *)
+TO_PECOM[9]		:=	WORD#49;	(* number of drives *)
+TO_PECOM[10]	:=	WORD#12;	(* OBJLGE per Drive in Byte*)
+
+
+(*****************************************************)
+(**	dynamic part of the message 					**)
+(*****************************************************)
+// Write the Drive struct into the temp. Send-Buffer
+p	:=	11;
+	FOR nDriveNumber	:= 0 TO 48
+		DO	p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord	:= 0;	// Clear the Status
+		
+			// reply to the UDP Handshake Bit
+			p_UDP_DriveData^.aDriveData_Out[nDriveNumber].bHandShake		:= p_UDP_DriveData^.aDriveData_In[nDriveNumber].bHandShake;
+
+			// Write the Status word
+			p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord.0		:= p_UDP_DriveData^.aDriveData_Out[nDriveNumber].bHandShake;
+			p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord.6		:= p_UDP_DriveData^.aDriveData_Out[nDriveNumber].bInSync;
+			p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord.7		:= p_UDP_DriveData^.aDriveData_Out[nDriveNumber].bCommandDone;
+			p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord.13	:= p_UDP_DriveData^.aDriveData_Out[nDriveNumber].bDriveFault;			
+			p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord.14	:= p_UDP_DriveData^.aDriveData_Out[nDriveNumber].bDriveReady;
+			p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord.15	:= p_UDP_DriveData^.aDriveData_Out[nDriveNumber].bDriveActive;
+		
+			TO_PECOM[p]		:=	2056;
+			TO_PECOM[p+1]	:=	1;
+			TO_PECOM[p+2]	:=	ROR(INT_TO_WORD(p_UDP_DriveData^.aDriveData_In[nDriveNumber].nDriveSercos_Id),8);
+			TO_PECOM[p+3]	:=	p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nStatusWord;
+			TO_PECOM[p+4]	:=	INT_TO_WORD(p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nActual_speed);
+			TO_PECOM[p+5]	:=	INT_TO_WORD(p_UDP_DriveData^.aDriveData_Out[nDriveNumber].nActual_torque);
+			nMsgSize		:=  p *2;
+			p	:= p + 6;
+			
+END_FOR
+
+(*****************************************************)
+(***	Create a send request					******)
+(*****************************************************)
+// Compare old and new State and create a SendRequest
+
+IF 	MEMCMP(ADR(TO_PECOM), ADR(TO_PECOM_old), SIZEOF(TO_PECOM_old)) <> 0	
+	OR	(R_BUF^.SIZE > UINT#0 AND R_BUF^.Ip_Adresss = sRemote_IP)		(*message was incoming and must be replied*)
+THEN
+	bSendRequest:=	TRUE;
+END_IF
+
+(*****************************************************)
+(* send the message to the remote plc*)
+(*****************************************************)
+IF bSendRequest THEN	
+	IF	S_BUF^.SIZE	=	UINT#0 (* last message was done *)
+	THEN
+		k	:=	0;
+		FOR	i	:= 0 TO nMsgSize
+			DO
+				S_BUF^.BUFFER[k]		:=	WORD_TO_BYTE(SHR(TO_PECOM[i],8));
+				k	:=	k + 1;
+				S_BUF^.BUFFER[k]		:=	WORD_TO_BYTE(TO_PECOM[i]);				
+				k	:=	k + 1;
+			END_FOR;
+		S_BUF^.Ip_Adresss 				:= sRemote_IP;
+		S_BUF^.nPLCMemberNr				:= nPLCMemberNr;
+		S_BUF^.nDriveMemberNr			:= nDriveMemberNr;
+		S_BUF^.SIZE						:= k;			(* send it *)
+		bSendRequest 					:= FALSE;		
+	END_IF;	
+END_IF
+
+(********************************************************)
+(* Reset the Receiving buffer and wait for next message	*)
+(*****************************************************)
+IF R_BUF^.Ip_Adresss = sRemote_IP THEN
+	R_BUF^.SIZE	:=	0;
+	R_BUF^.Ip_Adresss := '';
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_UDP_DriveCom">
+      <LineId Id="1154" Count="12" />
+      <LineId Id="1320" Count="0" />
+      <LineId Id="1167" Count="1" />
+      <LineId Id="1402" Count="0" />
+      <LineId Id="1446" Count="0" />
+      <LineId Id="1411" Count="0" />
+      <LineId Id="1170" Count="0" />
+      <LineId Id="1447" Count="0" />
+      <LineId Id="1171" Count="9" />
+      <LineId Id="1322" Count="0" />
+      <LineId Id="1181" Count="50" />
+      <LineId Id="1367" Count="0" />
+      <LineId Id="1312" Count="0" />
+      <LineId Id="1323" Count="0" />
+      <LineId Id="1407" Count="0" />
+      <LineId Id="1368" Count="0" />
+      <LineId Id="1232" Count="0" />
+      <LineId Id="1360" Count="2" />
+      <LineId Id="1365" Count="0" />
+      <LineId Id="1359" Count="0" />
+      <LineId Id="1356" Count="0" />
+      <LineId Id="1234" Count="14" />
+      <LineId Id="1314" Count="0" />
+      <LineId Id="1249" Count="30" />
+      <LineId Id="1315" Count="0" />
+      <LineId Id="1280" Count="0" />
+      <LineId Id="1109" Count="0" />
+      <LineId Id="1316" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

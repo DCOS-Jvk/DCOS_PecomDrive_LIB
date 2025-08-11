@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ServerApplication" Id="{7e244c39-8964-410c-a975-5a6b8c577099}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Sample server application. Adapt this code to match your needs. *)
+FUNCTION_BLOCK FB_ServerApplication
+VAR_INPUT	
+	nServer_Id		: INT;
+END_VAR
+VAR_IN_OUT
+	fbTx 			: FB_FrameFifo;(* TX fifo *)
+	fbRx 			: FB_FrameFifo;(* RX fifo *)
+	fbLog			: FB_LogFifo;(* Log message fifo *)
+END_VAR
+VAR
+	stToClient		: ST_ApplicationBinaryData; (* Tx user data *)
+	stFromClient	: ST_ApplicationBinaryData; (* Rx user data *)
+	sLogMessage 	: T_MaxString := '';(* Log/debug/error message *)
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(*------------------- Fetch rx data and send them back to the client -------------------------------------------------- *)
+REPEAT
+(*********************************************************************************************)	
+(************************** Read DataFrom the Receive-Buffer	**********************************)
+(*********************************************************************************************)	
+	fbRx.RemoveHead( );(* Fetch data from rx fifo *)
+	IF fbRx.bOk  THEN(* Success *)
+		stFromClient := fbRx.stGet;				
+		aTcpPuff[nServer_Id].R_Buf.BUFFER := stFromClient.aData;
+		aTcpPuff[nServer_Id].R_Buf.SIZE	:= UDINT_TO_UINT(fbRx.nNrOfByteRead);		
+	END_IF
+	
+(*********************************************************************************************)	
+(************************** Write Data to the Send-Buffer	**********************************)
+(*********************************************************************************************)	
+	IF aTcpPuff[nServer_Id].S_Buf.SIZE > 0 THEN	
+		stToClient.aData	:= 	aTcpPuff[nServer_Id].S_Buf.BUFFER;	
+		fbTx.nSizeToWrite	:= aTcpPuff[nServer_Id].S_Buf.SIZE;	
+		aTcpPuff[nServer_Id].S_Buf.SIZE := 0;	
+		fbTx.AddTail( stPut := stToClient );(* Put user data to the tx fifo *)
+		IF NOT fbTx.bOk THEN(* Fifo overflow => Log error *)
+			fbLog.Error( sMessage := 'FB_FrameFifo(sender)', nErrID := PLCPRJ_ERROR_SENDFIFO_OVERFLOW );
+		END_IF
+	END_IF		
+	
+UNTIL NOT fbRx.bOk
+END_REPEAT
+
+(*---------------------- Get log/error messages from log fifo ------------------*)
+REPEAT
+	fbLog.Remove( );
+	IF fbLog.bOk THEN
+
+		(* TODO: Implement log message handler *)
+		sLogMessage := fbLog.sGet;
+
+	END_IF
+UNTIL NOT fbLog.bOk
+END_REPEAT
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_ServerApplication">
+      <LineId Id="3" Count="1" />
+      <LineId Id="148" Count="1" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="145" Count="1" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="124" Count="1" />
+      <LineId Id="88" Count="3" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="20" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,206 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="PB_Start_TCPIP" Id="{9fddc77e-c26d-41c7-9c6a-de316a9519b5}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PB_Start_TCPIP
+VAR_INPUT	
+	sLocal_IP		: T_Ipv4Addr;	// IP-Adress of the the local Ethernetport where we want to listen/Send
+	Setup_MdsCom	: POINTER TO  ARRAY [0..20] OF ST_SetupDriveComMDS;
+END_VAR
+VAR_IN_OUT
+	iResetTCP		: BOOL;	
+END_VAR
+VAR
+	
+(****************************************************************)
+(*******		TCP Passiv Listener Functions				*****)	
+(****************************************************************)
+
+	sSrvNetID		: T_AmsNetID	:= '';(* TwinCAT TCP/IP server network address *)
+	nLocalPort		: UDINT 		:= 8101;(* Server port number *)
+	bLog			: BOOL			:= FALSE;(* TRUE => Enable log message output, FALSE => Disable *)
+	afbServer		: ARRAY[1..NR_OF_DRIVEMASTERS] OF FB_Server;(* Server (connection) instance *)
+	hServer			: T_HSERVER;(* Server connection handle *)
+
+(****************************************************************)	
+	
+	fbCloseAll	: FB_SocketCloseAll;
+	bInitialize	: BOOL := TRUE;
+	
+	(* Pecom Communication for desk A and B *)
+	FB_SendReceive_TCP	:	ARRAY[1..NR_OF_DRIVEMASTERS] OF FB_SendReceive_TcpIp;
+	
+	IP_Adr_A: DWORD;
+
+
+	nCount: INT;
+	nBuffer				: ARRAY[0..NR_OF_DRIVEMASTERS] OF INT;
+	nBuffer_empty		: ARRAY[0..NR_OF_DRIVEMASTERS] OF INT;
+	n: INT;
+	sServerPrefix: STRING;
+	nIP_SetupCount: INT;
+	bServerHandleState: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* On PLC reset or program download close all old (opened) connections *)
+IF iResetTCP THEN
+	bInitialize	:= TRUE;
+	iResetTCP	:= FALSE;
+END_IF
+fbCloseAll( sSrvNetID := sSrvNetID, bExecute:= bInitialize );
+IF fbCloseAll.bBusy OR fbCloseAll.bError THEN
+	RETURN;
+END_IF
+
+IF bInitialize THEN
+	bInitialize := FALSE;
+
+	(* Initialize server handle *)
+	bServerHandleState := F_CreateServerHnd( 	sSrvNetID 	:= sSrvNetID,
+												sLocalHost 	:= sLocal_IP,
+												nLocalPort	:= nLocalPort,
+												nMode 		:= SEL( bLog, 0, CONNECT_MODE_ENABLEDBG ),(* Enable debug messages *)
+												bEnable 	:= TRUE,(* TRUE = leave listener socket open, FALSE = close listener socket after last connection ist closed too *)
+												hServer 	:= hServer );
+	
+END_IF
+
+(* Trigger the execution of every server (connection) instance *)
+FOR n := 1 TO NR_OF_DRIVEMASTERS DO
+	sServerPrefix := Concat('SERVER',INT_TO_STRING(n));
+	sServerPrefix := Concat(sServerPrefix,':: ');
+	afbServer[n] ( hServer := hServer, sSrvNetID := sSrvNetID, bEnable := TRUE, bLog := bLog, nServer_Id := n, sPrefix := sServerPrefix );
+	stComStatus.bTCP_Connect[n] := FALSE;
+END_FOR
+
+nBuffer := nBuffer_empty;
+FOR nCount:= 1 TO NR_OF_DRIVEMASTERS DO
+	FOR nIP_SetupCount:= 1 TO NR_OF_DRIVEMASTERS DO
+		IF aTcpPuff[nCount].Ip_Adresss = Setup_MdsCom^[nIP_SetupCount].stSetup_MDS_IP 
+			AND aTcpPuff[nCount].Ip_Adresss <> ''
+			THEN
+				nBuffer[nIP_SetupCount] 			:= nCount;
+				aTcpPuff[nCount].PecomTNR 			:= Setup_MdsCom^[nIP_SetupCount].nPLCMemberNr_1;
+				stComStatus.bTCP_Connect[nCount]	:= TRUE;	// Write Status
+		END_IF
+	END_FOR	
+END_FOR
+Setup_MdsCom^[1].stSetup_MDS_IP;
+Setup_MdsCom^[2].stSetup_MDS_IP;
+Setup_MdsCom^[3].stSetup_MDS_IP;
+Setup_MdsCom^[4].stSetup_MDS_IP;
+Setup_MdsCom^[5].stSetup_MDS_IP;
+Setup_MdsCom^[6].stSetup_MDS_IP;
+Setup_MdsCom^[7].stSetup_MDS_IP;
+Setup_MdsCom^[8].stSetup_MDS_IP;
+Setup_MdsCom^[9].stSetup_MDS_IP;
+Setup_MdsCom^[10].stSetup_MDS_IP;
+Setup_MdsCom^[1].nPLCMemberNr_1;
+Setup_MdsCom^[2].nPLCMemberNr_1;
+Setup_MdsCom^[3].nPLCMemberNr_1;
+Setup_MdsCom^[4].nPLCMemberNr_1;
+Setup_MdsCom^[5].nPLCMemberNr_1;
+Setup_MdsCom^[6].nPLCMemberNr_1;
+Setup_MdsCom^[7].nPLCMemberNr_1;
+Setup_MdsCom^[8].nPLCMemberNr_1;
+Setup_MdsCom^[9].nPLCMemberNr_1;
+Setup_MdsCom^[10].nPLCMemberNr_1;
+
+(**********************************************)
+(***			Diagnose only				***)
+(**********************************************)
+aTcpPuff[nBuffer[1]].Ip_Adresss;
+aTcpPuff[nBuffer[1]].PecomTNR;
+aTcpPuff[nBuffer[1]].Conected;
+aTcpPuff[nBuffer[1]].R_Buf.SIZE; 
+
+aTcpPuff[nBuffer[2]].Ip_Adresss;
+aTcpPuff[nBuffer[2]].PecomTNR;
+aTcpPuff[nBuffer[2]].Conected;
+aTcpPuff[nBuffer[2]].R_Buf.SIZE;
+               
+aTcpPuff[nBuffer[3]].Ip_Adresss;
+aTcpPuff[nBuffer[3]].PecomTNR;
+aTcpPuff[nBuffer[3]].Conected;
+aTcpPuff[nBuffer[3]].R_Buf.SIZE;
+               
+aTcpPuff[nBuffer[4]].Ip_Adresss;
+aTcpPuff[nBuffer[4]].PecomTNR;
+aTcpPuff[nBuffer[4]].Conected;
+aTcpPuff[nBuffer[4]].R_Buf.SIZE;
+              
+aTcpPuff[nBuffer[5]].Ip_Adresss;
+aTcpPuff[nBuffer[5]].PecomTNR;
+aTcpPuff[nBuffer[5]].Conected;
+aTcpPuff[nBuffer[5]].R_Buf.SIZE;
+
+aTcpPuff[nBuffer[6]].Ip_Adresss;
+aTcpPuff[nBuffer[6]].PecomTNR;
+aTcpPuff[nBuffer[6]].Conected;
+aTcpPuff[nBuffer[6]].R_Buf.SIZE;
+
+aTcpPuff[nBuffer[7]].Ip_Adresss;
+aTcpPuff[nBuffer[7]].PecomTNR;
+aTcpPuff[nBuffer[7]].Conected;
+aTcpPuff[nBuffer[7]].R_Buf.SIZE;
+
+aTcpPuff[nBuffer[8]].Ip_Adresss;
+aTcpPuff[nBuffer[8]].PecomTNR;
+aTcpPuff[nBuffer[8]].Conected;
+aTcpPuff[nBuffer[8]].R_Buf.SIZE;
+
+aTcpPuff[nBuffer[9]].Ip_Adresss;
+aTcpPuff[nBuffer[9]].PecomTNR;
+aTcpPuff[nBuffer[9]].Conected;
+aTcpPuff[nBuffer[9]].R_Buf.SIZE;
+
+aTcpPuff[nBuffer[10]].Ip_Adresss;
+aTcpPuff[nBuffer[10]].PecomTNR;
+aTcpPuff[nBuffer[10]].Conected;
+aTcpPuff[nBuffer[10]].R_Buf.SIZE;
+
+(**********)
+
+(***** TCP communication remote System 1	*****)
+FOR n := 1 TO NR_OF_DRIVEMASTERS DO
+	IF Setup_MdsCom^[n].nPLCMemberNr_1 > 0 THEN 
+		FB_SendReceive_TCP[n]( R_BUF_A 				:= aTcpPuff[nBuffer[n]].R_Buf,
+							   S_BUF_A				:= aTcpPuff[nBuffer[n]].S_Buf,
+							   iConnected 			:= aTcpPuff[nBuffer[n]].Conected,
+							   nPecom_Tnr_Remote_1	:= Setup_MdsCom^[n].nPLCMemberNr_1,
+							   nPecom_Tnr_Remote_2	:= Setup_MdsCom^[n].nPLCMemberNr_2,
+							   nPecom_Tnr_Local		:= Setup_MdsCom^[n].nDriveMemberNr);
+	END_IF
+END_FOR
+
+(***************************************************************)
+(*******  This starts the Pecom Protokoll Functions		********)
+Eth_Send_Receive();
+Pecom_In_Out_data();	// Pecom Communication Layer
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="PB_Start_TCPIP">
+      <LineId Id="763" Count="34" />
+      <LineId Id="878" Count="0" />
+      <LineId Id="877" Count="0" />
+      <LineId Id="798" Count="2" />
+      <LineId Id="803" Count="2" />
+      <LineId Id="879" Count="3" />
+      <LineId Id="892" Count="14" />
+      <LineId Id="888" Count="0" />
+      <LineId Id="808" Count="56" />
+      <LineId Id="911" Count="0" />
+      <LineId Id="865" Count="3" />
+      <LineId Id="913" Count="1" />
+      <LineId Id="870" Count="1" />
+      <LineId Id="912" Count="0" />
+      <LineId Id="872" Count="2" />
+      <LineId Id="876" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="909" Count="1" />
+      <LineId Id="908" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

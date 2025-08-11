@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_UDP_Drive_Data" Id="{b6fe23c9-c2ef-4e7e-a551-42d67b9933ea}">
+    <Declaration><![CDATA[TYPE ST_UDP_Drive_Data :
+	STRUCT
+		sRemote_IP_Adress		: T_IPv4Addr;
+		nDriveMemberNr			: INT;			// Own Pecom Member Nr. (Old MDS Pecom Nr)
+		nPLCMemberNr			: INT;			// PLC Pecom Member Nr.
+		bConnectionState		: BOOL;
+		aDriveData_In			: ARRAY[0..50] OF ST_UDP_Msg_In;
+		aDriveData_Out			: ARRAY[0..50] OF ST_UDP_Msg_Out;
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

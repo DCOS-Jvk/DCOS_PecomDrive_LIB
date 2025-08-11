@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_DriveInterface_Ctrl" Id="{fd9503ad-61d3-4e3e-be8d-5fafa31a6cce}">
+    <Declaration><![CDATA[TYPE ST_DriveInterface_Ctrl :
+STRUCT
+	nSelectedMaster			:WORD;				// selected master
+	nClutchedMaster			:WORD;				// clutched master
+	nDriveGroup				:INT;				// Group of drives for Cutoff and Webup -> It is like the Webnumber the drive belongs to
+	bReset					:BOOL;				// rising trig will reset if any fault is active
+	bEnable					:BOOL;				// set to give power to motor
+	bStartRun				:BOOL;				// set to start motor in slow run
+	bRunRev					:BOOL;				// Direction -> set to run motor in rev direcition
+	fJogVelocity			:LREAL;				// selected speed for slow run, if = 0 then use default vel
+	nJogAcceleration		:INT;				// Acceleration in Local mode
+	nGearRatio				:INT;				// For 3.Folder -> 2 or 1 ; For Paddlewheel 10000 or 20000 depends on Collect or straight!!
+	// Cutoff and Speedgain
+	fSyncValue				:LREAL;				// relative value to the master where motor will clutch into
+	fGain					:LREAL;				// speed offset in % where such value can be used 1 = 1% faster
+	
+	// Positioning
+	bPositionMode			:BOOL;				// POS-Mode -> set to goto a modulated positon
+	bPosDirection			:BOOL;				// POS-Mode -> what direction to use when finding modulated position
+	fModeModPos				:LREAL;				// POS-Mode -> selected position for modulated position 0.000 - 360.000	
+	
+	// 3.Folder Speed Curve
+	n3Folder_Offset			:LREAL;				// 3.Folder -> Additional Cutoff offset for the 3.Folder (Fixed Value from Plc)
+	n3Folder_Offset_Curve	:LREAL;				// 3.Folder -> Speed Curve Offset
+	n3Folder_Degree_Curve	:LREAL;				// 3.Folder -> steepness of the speed curve
+	
+	// Sync Mode and Sync Speed
+	nDriveSyncMode			:WORD;				// describes how the drive syncs to the shaft -> Used for Folder Drives!!
+	fSyncSpeed				:LREAL;				// set to desired sync offset speed Degree/sec for sync to Main Axis
+	fSpeedCR_Permill		:LREAL;				// For PU only!! -> 100.0000 Promill OR 0.0400 Promill
+	fSpeedCR_DegreeS		:LREAL;				// For Folder only!! -> 20,0000 Degree/sec OR 1,0000 Degree/sec
+	fSpeedCutoff_Permill_Vari	:LREAL;				// set to desired sync offset speed Promill -> eg. 100.0000 Promill OR 0.2800 Promill
+	fSpeedCutoff_Degree		:LREAL;				// set to desired sync offset speed Degree/sec 
+	
+	
+	// Webtension Control Mode 
+	nWebTc_Mode				:INT;				// WebTc	-> 11=off, 12=On  , 13=Tempor. Off
+	fWebTc_SpeedGain		:LREAL;				// WebTc	-> Speedgain in manual mode in permill * 100 (eg 0.01‰ * 100)
+	fWebTc_WebTension		:LREAL;				// WebTc	-> Webtension in N In Automode
+	
+	// something ??
+	nSwitchPararmeter		:DINT;				// Switches between 2 parameter sets -> 0 or 1
+	bDriveMode				:BOOL;				// 11 = position Ctrl, 13 = speed Ctrl, 14 = Tourque slave
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

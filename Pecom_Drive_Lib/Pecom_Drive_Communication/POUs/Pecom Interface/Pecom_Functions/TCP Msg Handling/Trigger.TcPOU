@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="Trigger" Id="{bdebb5ef-c840-4239-92a8-81b80e9657ae}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK Trigger
+VAR_INPUT
+	iTRIG:	BOOL;
+END_VAR
+VAR_OUTPUT
+	Q:	BOOL;
+END_VAR
+VAR
+	R_TRIG_Ein:	R_TRIG;
+	R_TRIG_Quit:	R_TRIG;
+	F_TRIG_Ein:	F_TRIG;
+
+
+	F_TRIG_Quit: F_TRIG;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* Abfrage des Ereignisses auf Flanke und Quittung zur Wiederholung der Meldung *)
+
+R_TRIG_Ein	(CLK := (iTRIG));
+F_TRIG_Ein	(CLK := (iTRIG));
+//R_TRIG_Quit	(CLK := LS_RW.OBJ65101.Quit_1s);
+F_TRIG_Quit	(CLK := stPecomRW.OBJ_RW_65101.Quit_1s  AND iTRIG );
+
+Q := R_TRIG_EIN.Q OR F_TRIG_EIN.Q OR R_TRIG_Quit.Q OR F_TRIG_Quit.Q;
+]]></ST>
+    </Implementation>
+    <LineIds Name="Trigger">
+      <LineId Id="49" Count="4" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="54" Count="1" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

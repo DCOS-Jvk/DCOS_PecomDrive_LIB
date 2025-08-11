@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_CommunicationStatus" Id="{55663e66-9da1-4933-b4d8-1b5997a5c651}">
+    <Declaration><![CDATA[TYPE ST_CommunicationStatus :
+STRUCT
+	stRestart				:	ST_Restart;
+	bTCP_Connect			:	ARRAY[0..NR_OF_DRIVEMASTERS] OF BOOL;
+	bUDP_Connect			:	ARRAY[0..NR_OF_DRIVEMASTERS] OF BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Msg_Receive" Id="{56097474-9f3c-4d39-b911-5c2cbc596489}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Msg_Receive
+VAR_INPUT
+	Freigabe			:	BOOL;
+	Typ					:	STRING;
+END_VAR
+VAR_IN_OUT
+	Puffer				:	ST_InOut_Data;
+END_VAR
+VAR
+	Event_Error			:	INT;
+	Nachrichtenlaenge	:	INT;
+	TNR_neu				:	INT;
+	N					:	INT;
+	k					:	INT;
+	i					:	INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(****** TCP ******************************************************************)
+IF Typ = 'TCP' THEN
+	
+	IF NOT	Puffer.data_transfer_ready (* read data still running *)
+	THEN	(* data read *)
+		(*	
+		IF 	Sender = 0 
+			THEN
+				RETURN; 
+		END_IF;
+
+		Puffer.receiver := receiver;
+		IF		receiver <> -1 	THEN  (* Broadcast *)			
+			Puffer.Sender := Sender; 
+		END_IF;
+		*)
+
+		(********************************************************************************)
+		(* Seek in IN_MSG for valif Msg and sort it into the Buffer                   	*)
+		(********************************************************************************)
+		(* Es koennen max. 40 Nachrichten gleichzeitig einsortiert werden und aus       *)
+		(* IN_MSG1.MESS[1..40].MSG[0..99] ausgelesen werden.                            *)
+		(* In IN_MSG1.valid[1..40] steht für 1 Zyklus die validkeit                 *)
+		(********************************************************************************)
+
+		(* Aus dem TCP Buffer die erste gültige Nachricht einlesen *)
+		FOR	N:= 1	TO 40 DO
+		  IF	st_IN_PecomMsg.valid[N]
+		  THEN
+			  IF NOT	Puffer.data_transfer_ready (* was read *)
+			  THEN	(* data copy *)
+				Puffer.receiver   := WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[N].MSG[0]);
+				Puffer.Sender 	  := WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[N].MSG[1]);
+				Puffer.Typ		  := WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[N].MSG[2]);
+				Puffer.NFB		  := WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[N].MSG[3]);
+				Puffer.Lg_Byte	  := WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[N].MSG[4]);
+				Puffer.KDO		  := WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[N].MSG[5]);
+				Nachrichtenlaenge := Puffer.Lg_Byte / 2 + 5;
+				FOR i := 6 TO Nachrichtenlaenge
+				DO 	k	:=	i + 1;
+					Puffer.data[k] := WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[N].MSG[i]);
+				END_FOR;
+				st_IN_PecomMsg.valid[N]:= FALSE;
+				Puffer.data_transfer_ready := TRUE;
+				EXIT;
+			 END_IF;
+		  END_IF;
+		END_FOR;
+		
+		FOR	N:= 1	TO 20 DO
+		  IF	st_IN_PecomMsg.valid[N]
+		  THEN
+			IF	( WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[1].MSG[0]) = -1 )
+					 AND ( WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[1].MSG[1]) = -1 )
+				THEN
+				TNR_neu	:=	 WORD_TO_INT(st_IN_PecomMsg.stMsgBuffer[1].MSG[5]);
+				st_IN_PecomMsg.valid[1]:= FALSE;
+				stComStatus.stRestart.TLN[1]	:=	TNR_neu;
+				Puffer.data_transfer_ready := TRUE;
+				EXIT;
+			 END_IF;
+			END_IF;
+		END_FOR;
+		
+	END_IF; (* transfer_ready *)
+	
+END_IF; (* of TCP *)]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Msg_Receive">
+      <LineId Id="63" Count="1" />
+      <LineId Id="143" Count="0" />
+      <LineId Id="67" Count="9" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="78" Count="1" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="91" Count="11" />
+      <LineId Id="106" Count="16" />
+      <LineId Id="124" Count="15" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="43" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

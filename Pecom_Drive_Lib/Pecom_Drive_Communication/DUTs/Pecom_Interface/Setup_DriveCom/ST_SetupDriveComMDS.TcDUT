@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SetupDriveComMDS" Id="{809c5c31-35ee-4465-8f78-9578e3ec69f1}">
+    <Declaration><![CDATA[TYPE ST_SetupDriveComMDS :
+	STRUCT
+		stSetup_MDS_IP			: T_IPv4addr;
+		nPLCMemberNr_1			: INT;
+		nPLCMemberNr_2			: INT;
+		nDriveMemberNr			: INT;
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

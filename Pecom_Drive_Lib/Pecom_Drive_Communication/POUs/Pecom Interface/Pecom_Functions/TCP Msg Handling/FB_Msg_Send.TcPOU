@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Msg_Send" Id="{78179eb1-e908-4819-9f8a-8c3124cd396a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Msg_Send
+VAR_INPUT
+	receiver		:	INT;
+	Sender			:	INT;
+	Freigabe		:	BOOL;
+	Typ				:	STRING;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR_IN_OUT
+	Puffer:	ST_InOut_Data;
+END_VAR
+VAR
+	Puffer_receiver:	INT;
+	Nachrichtenlaenge:	INT;
+	N:	INT;
+	i:	INT;
+	k:	INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(****** TCP ******************************************************************)
+IF Typ = 'TCP'
+THEN	
+	IF 	NOT Puffer.data_transfer_ready
+		AND Freigabe
+	THEN	
+		Puffer.job_running 			:= TRUE;
+		Puffer.job_done 			:= FALSE;
+		Puffer.job_not_done 		:= FALSE;
+		Puffer.data_transfer_ready 	:= TRUE;
+		Puffer.nNumber_of_messages 	:= Puffer.nNumber_of_messages + 1; (* Diagnosezaehler *)
+		
+		Puffer_receiver				:=	Puffer.receiver;
+		Puffer.receiver				:= 	receiver;
+		Puffer.Sender				:= 	Sender;
+	
+		(* to send a message to the desk we also have an array of buffers *)
+		(* we can use 40 buffers *)
+		(* In OUT_MSG1.MESS[N].MSG[0] we have the desk number, so we can sort out were to we have to send them *)
+		FOR	N	:=	1	TO	40 DO
+			IF	st_OUT_PecomMsg.valid[N]	=	FALSE
+			THEN
+				st_OUT_PecomMsg.stMsgBuffer[N].MSG[0] := INT_TO_WORD(Puffer.receiver);
+				st_OUT_PecomMsg.stMsgBuffer[N].MSG[1] := INT_TO_WORD(Puffer.Sender) ;
+				st_OUT_PecomMsg.stMsgBuffer[N].MSG[2] := INT_TO_WORD(Puffer.Typ) ;
+				st_OUT_PecomMsg.stMsgBuffer[N].MSG[3] := INT_TO_WORD(Puffer.NFB) ;
+				st_OUT_PecomMsg.stMsgBuffer[N].MSG[4] := INT_TO_WORD(Puffer.Lg_Byte) ;
+				st_OUT_PecomMsg.stMsgBuffer[N].MSG[5] := INT_TO_WORD(Puffer.KDO) ;
+				Nachrichtenlaenge := Puffer.Lg_Byte / 2 + 5; 
+				FOR	i := 6 TO Nachrichtenlaenge DO	
+					k	:=	i + 1;
+					st_OUT_PecomMsg.stMsgBuffer[N].MSG[i]	:=	INT_TO_WORD(Puffer.data[k]) ;
+				END_FOR;
+				st_OUT_PecomMsg.valid[N]	:=	TRUE;
+				Puffer.job_running := FALSE;
+				Puffer.job_done := TRUE;
+				EXIT; 
+			ELSE
+				N	:=	N + 1;		
+			END_IF;
+		END_FOR;
+	
+		Puffer.receiver	:=	Puffer_receiver;
+	
+		IF		Puffer.job_running
+			AND Puffer.data_transfer_ready
+		THEN	
+			Puffer.job_running := FALSE;
+			Puffer.job_done 	:= TRUE;
+		END_IF;
+	END_IF;
+
+END_IF;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Msg_Send">
+      <LineId Id="20" Count="2" />
+      <LineId Id="24" Count="2" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="27" Count="4" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="33" Count="2" />
+      <LineId Id="70" Count="2" />
+      <LineId Id="74" Count="10" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="86" Count="8" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="38" Count="5" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="44" Count="4" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

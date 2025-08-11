@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_Elements" Id="{89f1f9b6-0d1a-4f91-869f-5e998093e79c}">
+    <Declaration><![CDATA[TYPE ST_Elements :
+STRUCT
+	Nummer	  : INT;	(* Gegenstelle*)
+	KNG	   	  : INT;
+	ANFTYP	  : INT;
+	SNSTIV	  : INT;
+	ZYKTME	  : INT;
+	MASEIN	  : INT;
+	flag	  : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

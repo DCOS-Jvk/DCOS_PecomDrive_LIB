@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_Objekt" Id="{879e2d72-e8d1-4053-b09b-a661e9f6267b}">
+    <Declaration><![CDATA[TYPE ST_Objekt :
+STRUCT
+    OBJART	  		: INT;
+	OBJLGE	  		: INT;
+	OBJGRP	  		: INT;
+	OBJEIN	  		: INT;
+	OBJLFN	  		: INT;
+    AUFTRAG	  		: INT;
+	KOM_RCK   		: BOOL;
+	AKTIV			: BOOL;
+	TLN				: ARRAY [0..4] OF ST_Elements;
+	Read_Data 		: BOOL;
+	Send_Data 		: BOOL;
+	In_data			: ARRAY [0..400] OF INT;
+	Out_data		: ARRAY [0..400] OF INT;
+
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

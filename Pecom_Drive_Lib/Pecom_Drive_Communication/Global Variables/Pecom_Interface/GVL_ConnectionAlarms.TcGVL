@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL_ConnectionAlarms" Id="{cc44cd51-f0e2-4052-b680-f4b668734b5c}">
+    <Declaration><![CDATA[VAR_GLOBAL
+	bAlarm_NoUDP_Connection		:	ARRAY[0..NR_OF_DRIVEMASTERS] OF BOOL;
+	bAlarm_NoTCP_Connection		:	ARRAY[0..NR_OF_DRIVEMASTERS] OF BOOL;
+
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

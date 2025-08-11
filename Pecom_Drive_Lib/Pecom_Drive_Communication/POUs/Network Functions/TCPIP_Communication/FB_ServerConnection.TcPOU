@@ -1,0 +1,185 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ServerConnection" Id="{1578d3e1-0b2d-40f6-a501-fb81e54ae3c9}" SpecialFunc="None">
+    <Declaration><![CDATA[(* 	This function block implements simple TCP/IP server protocol. *)
+FUNCTION_BLOCK FB_ServerConnection
+VAR_IN_OUT
+	hServer		: T_HSERVER;(* Server connection handle *)
+	fbTx 		: FB_FrameFifo;(* TX fifo *)
+	fbRx 		: FB_FrameFifo;(* RX fifo *)
+	fbLog		: FB_LogFifo;(* Log message fifo *)
+END_VAR
+VAR_INPUT
+	sSrvNetID	: T_AmsNetID	:= '';(* TwinCAT TCP/IP server network address *)
+	bEnable		: BOOL			:= FALSE;(* TRUE => Enable/connect, FALSE => Disable/disconnect *)
+	tReconnect	: TIME 			:= T#1S;(* Try to reconnect after this time *)
+	bLog		: BOOL 			:= FALSE; (* TRUE => Enable debug output, FALSE => Disable debug output *)
+	sPrefix		: STRING 		:= 'SERVER::';(* Log message description string (allows the identification of log message source) *)
+END_VAR
+VAR_OUTPUT
+	sIpAdress	: T_IPv4Addr;
+	eState		: E_SocketConnectionState := eSOCKET_DISCONNECTED;(* TCP/IP connection state *)
+END_VAR
+VAR
+	fbConnect 	: FB_ServerClientConnection;(* Create/release TCP/IP connection *)
+	fbSend		: FB_SocketSend;(* Send TCP/IP data *)
+	fbReceive	: FB_SocketReceive;(* Receive TCP/IP data *)
+	nState 		: BYTE;(* Global state *)
+	bSndBusy 	: BOOL;(* Tx state *)
+	bRcvBusy 	: BOOL;(* Rx state *)
+	bDisconnect	: BOOL;(* Disconnect flag, if set the socket will be closed *)
+
+	fbPollTimer	: TON;(* Rx data poll timer *)
+	fbRequestTimer	: TON;(* Request timeout timer *)
+	fbReconnectTimer : TON;(* Reconnect timer *)
+
+	nS			: UDINT;(* Send frame counter *)
+	nR			: UDINT;(* Received frame counter *)
+	cbReceived	: UDINT;(* Count of received data bytes *)
+	rxBuffer	: ARRAY[0..PLCPRJ_BUFFER_SIZE] OF BYTE;
+	cbFrame		: UDINT;(* Rx frame byte size *)
+	stTxFrame	: ST_BinaryFrame;(* Tx frame buffer (inclusive header) *)
+	stRxFrame	: ST_BinaryFrame;(* Rx frame buffer (inclusive header) *)
+	bAbort		: BOOL;(* Flag to abort frame parsing loop *)
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE nState OF
+	0:(* Create TCP/IP connection *)
+		fbConnect( 	eMode := eACCEPT_ALL, tReconnect := tReconnect, bEnable := bEnable, 
+					hServer := hServer, eState => eState );
+		IF NOT fbConnect.bBusy THEN
+			IF NOT fbConnect.bError THEN
+				IF eState = eSOCKET_CONNECTED THEN(* we are connected *)
+					
+					fbTx.Clear( sPrefix := CONCAT( sPrefix, 'FB_FrameFifo(sender)::' ), bLog := bLog );(* Clear TX fifo (optional) *)
+					fbRx.Clear( sPrefix := CONCAT( sPrefix, 'FB_FrameFifo(receiver)::' ), bLog := bLog );(* Clear RX fifo (optional) *)
+					fbLog.Clear( sPrefix := sPrefix, bLog := bLog );(* Clear log fifo (optional) *)
+					bSndBusy := FALSE;
+					bRcvBusy := FALSE;
+					bDisconnect := FALSE;
+					cbReceived 	:= 0;(* Reset number of received data bytes *)
+
+					fbPollTimer( IN := FALSE, PT := T#0S );
+					fbRequestTimer( IN := FALSE, PT := PLCPRJ_RECEIVE_TIMEOUT );
+					fbReconnectTimer( IN := FALSE, PT := tReconnect );
+				
+					fbLog.Message( sMessage := 'Connection established!', hSocket := fbConnect.hSocket );
+					nState 	:= 1;			
+					sIpAdress:=fbConnect.hSocket.remoteAddr.sAddr;
+				END_IF
+			ELSE(* Connect error => log error *)
+				fbLog.Error( sMessage := 'FB_ServerClientConnection()', nErrID := fbConnect.nErrId );
+			END_IF
+		END_IF
+
+
+	1:(* Data exchange state *)
+		bDisconnect := NOT bEnable OR bDisconnect;(* User/internal disconnect requested? *)
+		IF bDisconnect AND NOT bSndBusy AND NOT bRcvBusy THEN
+			bDisconnect := FALSE;
+			fbLog.Message( sMessage := 'Closing connection!', hSocket := fbConnect.hSocket );
+			nState := 2;(* Disconnect *)
+		ELSE
+
+			(* ----------------------- Get/fetch rx data -------------------------------- *)
+			IF NOT bDisconnect AND NOT bRcvBusy THEN
+				fbPollTimer( IN := TRUE );
+				IF fbPollTimer.Q THEN
+					IF fbRx.cbFree >= SIZEOF(stRxFrame.data) THEN(* Check free rx fifo space *)
+						fbPollTimer( IN := FALSE, PT := PLCPRJ_RECEIVE_POLLING_TIME );
+						fbReceive( bExecute := FALSE );
+						fbReceive( 	sSrvNetId	:= sSrvNetID,
+									hSocket		:= fbConnect.hSocket,
+									cbLen		:= SIZEOF(stRxFrame),
+									pDest		:= ADR(stRxFrame),
+									bExecute	:= eState = eSOCKET_CONNECTED );
+						bRcvBusy := eState = eSOCKET_CONNECTED;
+					END_IF
+				END_IF
+				
+			ELSE(* Wait until receive not busy *)
+				
+				fbReceive( bExecute := FALSE );
+				IF NOT fbReceive.bBusy THEN
+					bRcvBusy := FALSE;
+					IF NOT fbReceive.bError THEN
+						IF fbReceive.nRecBytes > 0 THEN (* Some bytes received *)
+
+							fbPollTimer( IN := FALSE, PT := T#0S );(* Bytes received => increase the read (polling) speed *)
+							cbReceived := fbReceive.nRecBytes;
+							fbRx.AddTail( stPut := stRxFrame.data,nSizeToWrite := cbReceived);(* Add user data to the rx fifo *)
+							IF fbRx.bOk THEN
+								IF fbRx.cbFree >= SIZEOF(stRxFrame.data) THEN
+									bAbort := FALSE;(* reset flag, try to parse next frame *)
+								END_IF
+							ELSE (* Fifo overflow => log error and disconnect *)
+								fbLog.Error( sMessage := 'FB_FrameFifo(receiver)', nErrID := PLCPRJ_ERROR_RECFIFO_OVERFLOW );
+								bDisconnect := TRUE;(* Set flag *)
+								RETURN;
+							END_IF		
+						END_IF
+
+					ELSE(* Receive error => Log error and disconnect *)
+						fbLog.Error( sMessage := 'FB_SocketReceive()', nErrID := fbReceive.nErrId );
+						bDisconnect := TRUE;(* set flag *)
+					END_IF
+
+				END_IF(* IF NOT fbReceive.bBusy THEN *)
+				
+			END_IF(* IF NOT bDisconnect AND NOT bRcvBusy THEN *)
+			(* -------------------------------------------------------------------------- *)
+
+			
+			
+			(* ------------------------------ Send tx data ------------------------------ *)
+			IF NOT bDisconnect AND NOT bSndBusy THEN
+				fbTx.RemoveHead();(* Remove oldest user data entry *)
+				IF fbTx.bOk THEN(* Success *)
+						
+					stTxFrame.data := fbTx.stGet;
+					fbTx.nSizeToWrite;			
+					(* Send frame *)
+					fbSend( bExecute := FALSE );
+					fbSend(	sSrvNetID 	:= sSrvNetID,
+							hSocket		:= fbConnect.hSocket,
+							cbLen		:= fbTx.nSizeToWrite,	(* size of user data *)
+							pSrc		:= ADR(stTxFrame),(* Pointer to the frame data *)
+							bExecute	:= TRUE );
+					bSndBusy := TRUE;
+				END_IF
+			ELSE(* Wait until send not busy *)
+				fbSend( bExecute := FALSE );
+				IF NOT fbSend.bBusy THEN
+					bSndBusy := FALSE;
+					IF NOT fbSend.bError THEN(* No error *)
+					ELSE(* Send error => Log error and disconnect *)
+						fbLog.Error( sMessage := 'FB_SocketSend()', nErrID := fbSend.nErrId );
+						bDisconnect := TRUE;(* Set flag *)
+					END_IF
+				END_IF
+			END_IF
+			(* -------------------------------------------------------------------------- *)
+
+			
+		END_IF(* IF bDisconnect AND NOT bSndBusy AND NOT bRcvBusy THEN *)
+
+
+	2:(* Disconnect *)
+		fbConnect( hServer := hServer, bEnable:= FALSE, eState=>eState );
+		IF eState = eSOCKET_DISCONNECTED THEN
+			sIpAdress:=fbConnect.sRemoteHost;
+			fbReconnectTimer( IN := TRUE );(* Please wait some seconds and then try to connect again *)
+			IF fbReconnectTimer.Q THEN
+				fbReconnectTimer( IN := FALSE );
+				nState := 0;
+			END_IF
+		END_IF
+
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FB_ServerConnection">
+      <LineId Id="377" Count="131" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

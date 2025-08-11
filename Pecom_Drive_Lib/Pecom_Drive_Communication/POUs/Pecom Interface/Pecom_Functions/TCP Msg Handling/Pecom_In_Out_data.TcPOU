@@ -1,0 +1,322 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="Pecom_In_Out_data" Id="{9c8ab802-6c73-42d5-827a-a66e3250b13a}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Pecom_In_Out_data
+VAR
+	MAX_ANZ_ZYKL_IN_data_valid:	INT;
+	anz_zykl_In_data_valid:	INT;
+	ANZBLK_old:	INT;
+	ANZBLK:	INT;
+	OBJANZ:	INT;
+	OBJLGE:	INT;
+	i:	INT;
+	TON_1:	TON;
+
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(************************************************************************************************)
+(*****				 			Pecom In Out Sort subroutine								*****)
+(***** If a Pecom Msg contains more the 1 Object... This routine take it					*****) 
+(***** apart into single Objects and set the st_IN_Objects.data_are_valid Flag				*****)
+(***** until the last object in the message is done											*****)
+(************************************************************************************************)
+
+Pecom_In_data();
+Pecom_Out_data();
+Pecom_Out_Alarm();
+]]></ST>
+    </Implementation>
+    <Action Name="Pecom_In_data" Id="{79b97514-459f-4af5-8685-93d53db6d82f}">
+      <Implementation>
+        <ST><![CDATA[(*-- Pointer auf naechstes Objekt --*)
+IF	st_IN_Objects.data_are_valid
+	THEN
+		st_IN_Objects.DSK_Pointer 	:= 	st_IN_Objects.DSK_Pointer 
+							+ 	OBJLGE;
+
+		IF 		st_IN_Objects.DSK_Pointer > st_IN_Objects.data_Max
+			THEN 	
+				st_IN_Objects.DSK_Pointer	:= st_IN_Objects.data_Max;
+		END_IF;
+
+		IF	OBJANZ <> 0
+			THEN (* Bearbeitetes Objekt abziehen *)
+				OBJANZ := OBJANZ - 1;
+		END_IF;
+		
+		IF		st_IN_Objects.DSK_Pointer + 2	>=	7
+			AND	st_IN_Objects.DSK_Pointer + 2	<=	950
+			AND	OBJANZ = 0
+			THEN	(* Bearbeiteten Block abziehen *)
+				ANZBLK 				:= ANZBLK - 1;
+				st_IN_Objects.BLK_Pointer 	:= st_IN_Objects.DSK_Pointer;
+				i 					:= st_IN_Objects.DSK_Pointer + 2;
+				OBJLGE				:= st_IN_Objects.data[i] / 2;
+		
+		ELSE	(* ABBRUCH *)
+				st_IN_Objects.data_are_valid 		:= 	FALSE;
+				st_IN_Objects.data_transfer_ready 	:= 	FALSE;
+				anz_zykl_In_data_valid		:=	0;
+		END_IF;
+		
+		(*-- Überprüfung Abarbeitung der IN-data --*)
+		IF		ANZBLK_old
+			=	ANZBLK	
+			THEN
+				anz_zykl_In_data_valid	:=	anz_zykl_In_data_valid	+	1;
+
+				IF		anz_zykl_In_data_valid
+					>=	MAX_ANZ_ZYKL_IN_data_valid
+					THEN
+						ANZBLK	:=	0;
+				END_IF;
+		END_IF;
+
+		ANZBLK_old	:=	ANZBLK;
+
+		(*-- Ende Dekodierung --*)
+		IF	ANZBLK = 0
+			THEN
+				st_IN_Objects.data_are_valid 		:= 	FALSE;
+				st_IN_Objects.data_transfer_ready 	:= 	FALSE;
+				anz_zykl_In_data_valid		:=	0;	
+		END_IF;
+END_IF;
+
+(*------------------------------------------------------------------------------------------*)
+(*-- Initialisierung --*)
+IF 	st_IN_Objects.BLK_Pointer = 0 
+	THEN 
+		st_IN_Objects.BLK_Pointer := 9; 
+END_IF;
+
+IF 	st_IN_Objects.DSK_Pointer = 0 
+	THEN 
+		st_IN_Objects.DSK_Pointer := 12; 
+END_IF;
+st_IN_Objects.data_Max := 930;
+
+(*------------------------------------------------------------------------------------------*)
+(*-- Start Dekodierung --*)
+IF		NOT	st_IN_Objects.data_are_valid
+	AND	st_IN_Objects.data_transfer_ready
+	THEN
+		st_IN_Objects.data_are_valid	:=	TRUE;
+		st_IN_Objects.BLK_Pointer 			:= 	9;
+		st_IN_Objects.DSK_Pointer 			:= 	9;
+		ANZBLK						:= st_IN_Objects.data[8];
+
+		IF 	(*	st_IN_Objects.KDO <>  10921 	// Drive Messages
+			AND *)
+			(st_IN_Objects.KDO < 10901 
+			OR 	st_IN_Objects.KDO > 10912)
+			THEN
+				ANZBLK := 1;
+				OBJANZ := 1;
+				OBJLGE := 0;
+		END_IF;
+END_IF;
+
+IF		(st_IN_Objects.KDO >= 10901
+	AND	st_IN_Objects.KDO <= 10912
+	OR  st_IN_Objects.KDO =  10921)		// Drive Messages
+	AND	st_IN_Objects.BLK_Pointer =	st_IN_Objects.DSK_Pointer
+	AND	st_IN_Objects.data_are_valid
+	THEN	(* 1. Objekt im Block *)
+		IF		st_IN_Objects.DSK_Pointer + 1	>=	7
+			AND	st_IN_Objects.DSK_Pointer + 1	<=	950
+			AND	st_IN_Objects.DSK_Pointer + 2	>=	7
+			AND	st_IN_Objects.DSK_Pointer + 2	<=	950
+			THEN
+				i 		:= st_IN_Objects.DSK_Pointer + 1;
+				OBJANZ	:= st_IN_Objects.data[i];
+
+				i 		:= st_IN_Objects.DSK_Pointer + 2;
+				OBJLGE	:= st_IN_Objects.data[i] / 2;
+
+				st_IN_Objects.DSK_Pointer 	:= 
+										st_IN_Objects.BLK_Pointer 
+									+ 	3;
+		
+		ELSE	(* ABBRUCH *)
+				st_IN_Objects.data_are_valid 		:= 	FALSE;
+				st_IN_Objects.data_transfer_ready 	:= 	FALSE;
+				anz_zykl_In_data_valid		:=	0;
+		END_IF;
+END_IF;]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Pecom_Out_Alarm" Id="{c9d7c241-9661-4fa3-b63b-4abaea31f185}">
+      <Implementation>
+        <ST><![CDATA[(**********************************************************************************)
+(***  Pecom Alarm messages OUT 													***)
+(*** the struct "OUT_MSG" is transfered to the send Buffer  "OUT_MSG_puffer"	***)
+(**********************************************************************************)
+st_OUT_Alarms.Error 					:=	st_OUT_Alarms_Buffer.Error;
+st_OUT_Alarms.Hand_Shake				:=	st_OUT_Alarms_Buffer.Hand_Shake;
+st_OUT_Alarms.nNumber_of_messages		:=	st_OUT_Alarms_Buffer.nNumber_of_messages;
+st_OUT_Alarms.nNumber_of_Error			:=	st_OUT_Alarms_Buffer.nNumber_of_Error;
+st_OUT_Alarms.nUnknown_message			:=	st_OUT_Alarms_Buffer.nUnknown_message;
+st_OUT_Alarms.data_transfer_ready		:=	st_OUT_Alarms_Buffer.data_transfer_ready;
+st_OUT_Alarms.job_running				:=	st_OUT_Alarms_Buffer.job_running;
+st_OUT_Alarms.job_done					:=	st_OUT_Alarms_Buffer.job_done;
+st_OUT_Alarms.job_not_done				:=	st_OUT_Alarms_Buffer.job_not_done;
+st_OUT_Alarms.job_timeout				:=	st_OUT_Alarms_Buffer.job_timeout;
+
+IF		NOT st_OUT_Alarms_Buffer.data_are_valid
+	AND NOT st_OUT_Alarms_Buffer.data_transfer_ready
+	AND	st_OUT_Alarms.DSK_Pointer > 8
+	THEN	
+		st_OUT_Alarms.BLK_Pointer := 0; (* number of Alarms *)
+		st_OUT_Alarms.DSK_Pointer := 8;
+
+		IF	st_OUT_Alarms.receiver	>	0
+			THEN	(* data für Senden *)
+				st_OUT_Alarms_Buffer.receiver				:=	st_OUT_Alarms.receiver;
+				st_OUT_Alarms_Buffer.Sender					:=	st_OUT_Alarms.Sender;
+				st_OUT_Alarms_Buffer.Typ					:=	st_OUT_Alarms.Typ;
+				st_OUT_Alarms_Buffer.NFB					:=	st_OUT_Alarms.NFB;
+				st_OUT_Alarms_Buffer.Lg_Byte				:=	st_OUT_Alarms.Lg_Byte;
+				st_OUT_Alarms_Buffer.KDO					:=	st_OUT_Alarms.KDO;		 
+				
+				st_OUT_Alarms_Buffer.data 					:=	st_OUT_Alarms.data; 
+
+				st_OUT_Alarms_Buffer.data_are_valid		:=	TRUE;
+
+				st_OUT_Alarms.receiver 					:= 	0;
+		END_IF;
+END_IF;
+
+IF	(	st_OUT_Alarms_Buffer.job_done
+	OR	st_OUT_Alarms_Buffer.job_not_done)
+	AND	st_OUT_Alarms_Buffer.data_are_valid
+	AND	st_OUT_Alarms_Buffer.data_transfer_ready
+	THEN
+		st_OUT_Alarms_Buffer.data_are_valid    	:=	FALSE;
+		st_OUT_Alarms_Buffer.data_transfer_ready 	:= 	FALSE;
+		st_OUT_Alarms_Buffer.receiver 				:= 	0;
+END_IF;
+
+IF 	st_OUT_Alarms.DSK_Pointer = 0 
+	THEN 
+		st_OUT_Alarms.DSK_Pointer := 8; 
+END_IF;
+
+st_OUT_Alarms.data_Max := 900;
+
+TON_1 ( IN := NOT st_OUT_Alarms.Release_first_value,
+		PT := T#4s); (* release first value bit after 4 sec *)
+IF		TON_1.Q
+	THEN	
+		st_OUT_Alarms.Release_first_value := TRUE;
+END_IF;]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Pecom_Out_data" Id="{779cf2dd-c7b4-4afc-adc6-484d1b8ed206}">
+      <Implementation>
+        <ST><![CDATA[(**********************************************************************************)
+(***  Pecom Object messages OUT 												***)
+(* the struct "OUT_Objects_puffer" is sorted and transfered to -> "OUT_Objects" ***)
+(**********************************************************************************)
+st_OUT_Objects.Error 						:=	st_OUT_Objects_Buffer.Error;
+st_OUT_Objects.Hand_Shake					:=	st_OUT_Objects_Buffer.Hand_Shake;
+st_OUT_Objects.nNumber_of_messages			:=	st_OUT_Objects_Buffer.nNumber_of_messages;
+st_OUT_Objects.nNumber_of_Error				:=	st_OUT_Objects_Buffer.nNumber_of_Error;
+st_OUT_Objects.nUnknown_message				:=	st_OUT_Objects_Buffer.nUnknown_message;
+st_OUT_Objects.data_transfer_ready			:=	st_OUT_Objects_Buffer.data_transfer_ready;
+st_OUT_Objects.job_running					:=	st_OUT_Objects_Buffer.job_running;
+st_OUT_Objects.job_done						:=	st_OUT_Objects_Buffer.job_done;
+st_OUT_Objects.job_not_done					:=	st_OUT_Objects_Buffer.job_not_done;
+st_OUT_Objects.job_timeout					:=	st_OUT_Objects_Buffer.job_timeout;
+
+IF		NOT st_OUT_Objects_Buffer.data_are_valid
+	AND NOT st_OUT_Objects_Buffer.data_transfer_ready
+	AND	st_OUT_Objects.DSK_Pointer > 12 
+	THEN	
+		st_OUT_Objects.BLK_Pointer 					:=	9;
+		st_OUT_Objects.DSK_Pointer 					:=	12;
+
+		IF	st_OUT_Objects.receiver	>	0
+			THEN	(* data für Senden *)
+				st_OUT_Objects_Buffer.receiver		:=	st_OUT_Objects.receiver;
+				st_OUT_Objects_Buffer.Typ			:=	st_OUT_Objects.Typ;
+				st_OUT_Objects_Buffer.NFB			:=	st_OUT_Objects.NFB;
+				st_OUT_Objects_Buffer.Lg_Byte		:=	st_OUT_Objects.Lg_Byte;
+				st_OUT_Objects_Buffer.KDO			:=	st_OUT_Objects.KDO;		 
+				
+				st_OUT_Objects_Buffer.data 			:=	st_OUT_Objects.data; 
+
+				st_OUT_Objects_Buffer.data_are_valid:=	TRUE;
+		END_IF;
+END_IF;
+
+(*-- Bereichsgrenzen überwachen --*)
+(*-- Struktur OUT_Objects --*)
+IF 	st_OUT_Objects.BLK_Pointer = 0 
+	THEN 
+		st_OUT_Objects.BLK_Pointer := 9; 
+END_IF;
+
+IF 	st_OUT_Objects.DSK_Pointer = 0 
+	THEN 
+		st_OUT_Objects.DSK_Pointer := 12; 
+END_IF;
+
+st_OUT_Objects.data_Max := 930;
+
+(*-- Struktur OUT_Objects_puffer --*)
+IF 	st_OUT_Objects_Buffer.BLK_Pointer = 0 
+	THEN 
+		st_OUT_Objects_Buffer.BLK_Pointer := 9; 
+END_IF;
+
+IF 	st_OUT_Objects_Buffer.DSK_Pointer = 0 
+	THEN 
+		st_OUT_Objects_Buffer.DSK_Pointer := 12; 
+END_IF;
+
+st_OUT_Objects_Buffer.data_Max := 930;
+]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="Pecom_In_Out_data">
+      <LineId Id="65" Count="3" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="Pecom_In_Out_data.Pecom_In_data">
+      <LineId Id="0" Count="6" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="11" Count="68" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="82" Count="8" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="91" Count="23" />
+    </LineIds>
+    <LineIds Name="Pecom_In_Out_data.Pecom_Out_Alarm">
+      <LineId Id="61" Count="2" />
+      <LineId Id="4" Count="21" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="26" Count="34" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="Pecom_In_Out_data.Pecom_Out_data">
+      <LineId Id="121" Count="0" />
+      <LineId Id="0" Count="1" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="2" Count="25" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="29" Count="30" />
+      <LineId Id="119" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_DriveInterface" Id="{0aaa07a8-c590-01bc-0c87-1da7c5df0d0a}">
+    <Declaration><![CDATA[TYPE ST_DriveInterface :
+STRUCT
+	stDriveMotorInterface_stat		: ST_DriveInterface_Stat;
+	stDriveMotorInterface_ctrl		: ST_DriveInterface_Ctrl;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

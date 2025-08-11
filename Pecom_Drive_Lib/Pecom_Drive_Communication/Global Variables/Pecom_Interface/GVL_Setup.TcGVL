@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL_Setup" Id="{d922c506-a708-4447-bbc4-b4042f3723ca}">
+    <Declaration><![CDATA[VAR_GLOBAL	
+	stSetup_MdsCom				: ARRAY [0..NR_OF_DRIVEMASTERS] OF ST_SetupDriveComMDS;		
+	stSetup_DriveCom			: ARRAY [0..50] 				OF ST_SetupDriveCom;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

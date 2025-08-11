@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_MainAxisInterface_Stat" Id="{6ee3c31e-6fc7-46ab-8b7c-2670a0f2f704}">
+    <Declaration><![CDATA[TYPE ST_MainAxisInterface_Stat :
+STRUCT
+	bEnabled			:BOOL;			// drive is under power
+	
+	fActVel				:LREAL;			// acutal vel, untis/s
+
+	
+	// P1160 Sync Feedback for each Drive Group (Bit 0 = Group 0 and so on)
+	bInSync				:WORD;			// Status of the Sync Position for each DRIVE-GROUP (Is a drive in a group not in sync -> BIT is High)
+	
+	// Error Handling
+	bError				:BOOL;			// Main Axis has a fault	
+	
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

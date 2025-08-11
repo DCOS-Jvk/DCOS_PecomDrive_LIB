@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_InOut_Msg" Id="{d881510d-c146-4787-8923-99c7fb17b8d3}">
+    <Declaration><![CDATA[TYPE ST_InOut_Msg :
+STRUCT
+	number_of_buffers	:	INT;
+	buffer_overfow		:	BOOL;
+	Pecom_Tnr			:	ARRAY [1..40] OF INT;
+	valid				:	ARRAY [1..40] OF BOOL;
+	stMsgBuffer			:	ARRAY [1..40] OF  ST_MsgBuffer;	// 40 x 950 Words Buffer
+END_STRUCT
+
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

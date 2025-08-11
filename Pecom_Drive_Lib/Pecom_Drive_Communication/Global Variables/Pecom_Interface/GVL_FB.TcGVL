@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL_FB" Id="{1829242d-38ba-4f45-8391-04cfc7edf4d3}">
+    <Declaration><![CDATA[VAR_GLOBAL
+	FB_UDP_Connection_arr	: ARRAY[0..20] OF FB_UDP_DriveCom;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

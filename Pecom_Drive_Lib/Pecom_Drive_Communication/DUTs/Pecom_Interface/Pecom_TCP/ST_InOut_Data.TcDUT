@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_InOut_Data" Id="{448e278b-fb91-4198-8ec6-955188486bf6}">
+    <Declaration><![CDATA[TYPE ST_InOut_Data :
+STRUCT
+	Error						: SINT;
+	Hand_Shake					: SINT;
+    Receiver  					: INT;
+	Sender     					: INT;
+	Typ		 					: INT;
+	NFB		  					: INT;
+	Lg_Byte	 					: INT;
+	KDO							: INT;
+   	data						: ARRAY[7..950] OF INT;
+	data_Max  					: INT;
+   	BLK_Pointer 				: INT;
+	DSK_Pointer 				: INT;
+	nNumber_of_messages			: INT;
+	nNumber_of_Error			: INT;
+	nUnknown_message			: INT;
+    data_transfer_ready     	: BOOL;
+	data_are_valid				: BOOL;
+	Send_data					: BOOL;
+    job_running             	: BOOL;
+	job_done 					: BOOL;
+	job_not_done  				: BOOL;
+	job_timeout					: BOOL;
+	Release_first_value			: BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

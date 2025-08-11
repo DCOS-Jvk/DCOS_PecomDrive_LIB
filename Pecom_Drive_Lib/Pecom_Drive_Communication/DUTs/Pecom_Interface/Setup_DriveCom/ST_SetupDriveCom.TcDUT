@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SetupDriveCom" Id="{f0de9f5a-53b4-4fd1-8ea9-ebdc2ef99ea0}">
+    <Declaration><![CDATA[TYPE ST_SetupDriveCom :
+	STRUCT
+		nDriveNumber			: INT;			// MDxx -> Drive number in the drive array and the Axis
+		sDriveName				: STRING;		// Label of the drive eg. in the drawings
+		sDriveDescription		: STRING;		// Description or function of the drive	in the press	
+		sLocalIP				: STRING;		// Own Ip adress (Socket) where the Pecom send the Messages to
+		sRemoteIP				: STRING;		// Ip adress of the pecom Partner-plc system 
+		nDriveMemberNr			: INT;
+		nPLCMemberNr			: INT;
+        nSercosID               : INT;			// Indicate the position of the drive in the UDP-Msg Stack
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

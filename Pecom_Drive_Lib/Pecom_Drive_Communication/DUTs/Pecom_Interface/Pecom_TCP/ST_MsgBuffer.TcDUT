@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_MsgBuffer" Id="{5d2407b3-ef3d-4b9b-946c-2a714abbee3c}">
+    <Declaration><![CDATA[(* Ethernetpuffer *)
+TYPE ST_MsgBuffer :
+STRUCT
+	MSG	: ARRAY [0..950] OF	 WORD;	// Ethernetpuffer 950 Words
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

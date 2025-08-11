@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="PB_Start_UDP" Id="{0bdf3341-12b9-44cf-a89e-ab8b86de1b3d}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PB_Start_UDP
+VAR_INPUT
+	iResetUDP_Com		: BOOL;
+	sLocal_IP			: T_IPv4Addr;			// IP-Adress of the the local Ethernetport where we want to listen/Send
+END_VAR
+	
+VAR
+	IP_UDP_Server		: IP_C;
+	FB_UDP_Server_1		: FB_UDP_Server;	
+	
+	S_BUF_UDP			: ST_UDP_Buffer;		// UDP Send Buffer It is hand over to the UDP Socket 
+	R_BUF_UDP			: ST_UDP_Buffer;		// UDP Receive Buffer It comes from the UDP Socket 	
+	i: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(************************************************************************************************)
+(*****				 					Ethernet UDP 										*****)
+(***** UDP Communication between the PLC <--> Drive System 									*****)
+(***** 																						*****)
+(************************************************************************************************)
+
+
+(*************************************)
+(***** UDP Server Start Listen 	******)
+(*************************************)
+	IP_UDP_Server.C_ENABLE 	:= NOT iResetUDP_Com;
+	
+	FB_UDP_Server_1(PORT		:= WORD#8101,
+					sLocal_IP	:= sLocal_IP,			// Important if you have more ethernet devices on your plc
+					TIME_OUT	:= T#10S,
+					IP_C		:= IP_UDP_Server,		// Ip settings
+					S_BUF		:= S_BUF_UDP,
+					R_BUF		:= R_BUF_UDP);
+	
+	IP_UDP_Server.ERROR;
+	IP_UDP_Server.C_STATE;
+
+	
+
+(*****************************************)
+(***	Single Unit Drive Masters MDS	**)
+(*****************************************)
+FOR i := 1 TO NR_OF_DRIVEMASTERS DO 
+FB_UDP_Connection_arr[i](	sRemote_IP		:= stSetup_DriveCom[i].sRemoteIP, 		// '172.25.4.1', 
+							nDriveMemberNr	:= stSetup_DriveCom[i].nDriveMemberNr, 	// 2101, 
+							nPLCMemberNr	:= stSetup_DriveCom[i].nPLCMemberNr,	// 5001, 
+							p_UDP_DriveData	:= ADR(stDrive_Data_arr[i]), 
+							S_BUF			:= ADR(S_BUF_UDP),
+							R_BUF			:= ADR(R_BUF_UDP), 
+							bAlarmNoConnection=> bAlarm_NoUDP_Connection[i]);
+END_FOR
+							
+						]]></ST>
+    </Implementation>
+    <LineIds Name="PB_Start_UDP">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="11" Count="14" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="76" Count="4" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="81" Count="6" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="74" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_Restart" Id="{9c2e82b3-29a4-4a95-97f5-86ea5cb00410}">
+    <Declaration><![CDATA[TYPE ST_Restart :
+STRUCT
+	akt							: BOOL;
+	TLN							: ARRAY[1..4]	OF	INT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,283 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="Pecom_Write_Alarm" Id="{ef89ae6c-d3d6-4936-a431-fa9e7fd3294a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK Pecom_Write_Alarm
+VAR_INPUT
+	iReceiverPecomNr	:	INT;				// Receiver of the Alarm
+	iSenderPecomNr		:	INT;				// Receiver of the Alarm
+	Frg					:	BOOL;               // Freigabe Meldung
+	StQu				:	BOOL;               // Stoe Quit
+	Glob				:	BOOL;               // Global : Umschaltung Meldegruppe 1 und 5 nach 11
+	Res					:	INT;                // Reserve
+	ort1				:	INT;       
+	stAlarm				:	ST_Alarm;  
+END_VAR
+VAR_OUTPUT
+	qAlarmSent			:	BOOL;
+
+END_VAR
+VAR	
+	Grup				:	INT;                        // Gruppe
+	Quit				:	INT;                        // Quittierpflicht
+	Sper				:	INT;                        // Sperrzustand
+	ErNr				:	INT;                        // Ereignisnummer
+	ObjNr				:	INT;                        // Objektnummer
+	Mldg				:	BOOL;						// Triggerung Meldung
+	            		
+	Ort					:	ARRAY [0..30] OF	INT;    // Ortsangabe 1-30
+	Lge					:	INT;                        // Laenge Ortsangabe
+	Frg_Eintrag			:	BOOL;
+	p					:	INT;
+	p1					:	INT;
+	p2					:	INT;
+	i					:	INT;
+	j					:	INT;
+	jn					:	INT;
+	HM_Grup				:	INT;
+	Grup_eingetragene_Mldg	:	INT;
+	Lge_eingetragene_Mldg	:	INT;
+	Nachricht_schon_eingetragen	:	BOOL;
+
+	ALT_Mldg			: BOOL;
+	HM_StQu				: BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(*** Alarm struct to the single variables	***)
+	Grup		:= stAlarm.gruppe;
+	Quit		:= stAlarm.quitt;
+	Sper		:= stAlarm.sperre;
+	ErNr		:= stAlarm.ernr;
+	ObjNr		:= stAlarm.objektnr;
+	Mldg		:= stAlarm.Status;
+	ort[1]		:= ort1;		//stAlarm.ort1;
+	ort[2]		:= stAlarm.ort2;
+	ort[3]		:= stAlarm.ort3;
+	ort[4]		:= stAlarm.ort4;
+	ort[5]		:= stAlarm.ort5;
+	ort[6]		:= stAlarm.ort6;
+	ort[7]		:= stAlarm.ort7;
+	ort[8]		:= stAlarm.ort8;
+
+(*-- Länge der verwendeten Ortsangaben berechnen --*)
+i	:=	9;
+REPEAT
+	i	:=	i	-	1;
+	Lge	:=	i;
+
+UNTIL	ort[i]	<>	0
+	OR	i		=	0
+END_REPEAT;
+
+Lge	:=	LIMIT(	0,Lge,30);
+
+(*-----------------------------------------------------------------------------------------------*)
+(* Anfrage ob Eintrag Meldung/ message in list *)
+IF NOT Frg 			THEN ALT_Mldg := FALSE; END_IF;	
+IF StQu AND Mldg	THEN HM_StQu  := TRUE; END_IF;	
+
+
+IF 	(	st_OUT_Alarms.receiver = 0
+	OR 	st_OUT_Alarms.receiver = iReceiverPecomNr )
+	AND st_OUT_Alarms.DSK_Pointer <  900 - (Lge +4)
+	AND NOT st_OUT_Alarms.data_are_valid
+	AND (( 	Mldg XOR Alt_Mldg )	OR ( Mldg AND HM_StQu ))
+	AND	Frg
+	THEN
+		ALT_Mldg 			:= 	Mldg;
+		qAlarmSent			:=	TRUE;
+
+		(* Eintrag Meldung *)
+		st_OUT_Alarms.receiver  	:= 	iReceiverPecomNr;
+		st_OUT_Alarms.Sender	   	:= 	iSenderPecomNr;		(* siehe Ethernet Send *)
+		st_OUT_Alarms.Typ		   	:= 	153;
+		st_OUT_Alarms.NFB		   	:= 	0;
+		st_OUT_Alarms.Lg_Byte	   	:= 	st_OUT_Alarms.Lg_Byte; 	(* siehe  unten *)
+		st_OUT_Alarms.KDO 		:= 	-436; 				(* 65100 *)
+
+		(*-----------------------------------------------------------------------------------------------*)
+		(* Nachricht erzeugen / create message				   *)
+		(* OUT_MSG.data[9XX] sind Temporaervariablen *)
+		(* Gruppe, Länge eintragen 				-*)
+		IF 	Glob
+			THEN
+				HM_Grup := Grup;
+
+		ELSE	IF 		Grup >= 1
+					AND Grup <= 5
+					THEN
+						HM_Grup := 9;
+
+				ELSIF 	Grup = 11
+					THEN
+						HM_Grup := 19;
+
+				ELSIF 	Grup = 21
+					THEN
+						HM_Grup := 22;
+				END_IF;
+		END_IF;
+
+		st_OUT_Alarms.data[901] := HM_Grup * 256 + Lge;
+
+		IF 	NOT	HM_StQu
+			THEN
+				st_OUT_Alarms.data[901] := st_OUT_Alarms.data[901] + 32767 + 1;
+		END_IF;
+		
+		HM_StQu := FALSE;
+		
+		IF 	(	HM_Grup = 1
+			OR	HM_Grup = 2)
+			AND Mldg		
+			AND st_OUT_Alarms.Release_first_value
+			THEN
+				st_OUT_Alarms.Release_first_value := FALSE;
+				st_OUT_Alarms.data[901] 	:= st_OUT_Alarms.data[901] + 16#4000;
+		END_IF;
+
+		(*-----------------------------------------------------------------------------------------------*)
+		(*-- Quittierung, Sperre eintragen --*)
+		st_OUT_Alarms.data[902] := Quit * 256 + Sper;
+
+		(*-----------------------------------------------------------------------------------------------*)
+		(*-- Ereignisnummer --*)
+		IF   	Mldg 
+			THEN 	
+				st_OUT_Alarms.data[903] := Res * 256 + ErNr;
+			ELSE 	
+				st_OUT_Alarms.data[903] := Res * 256 + 0;
+		END_IF;
+
+		(*-----------------------------------------------------------------------------------------------*)
+		(*-- Objektnummer --*)
+		st_OUT_Alarms.data[904] := ObjNr;
+
+		(*-----------------------------------------------------------------------------------------------*)
+		(*-- Ortsangaben --*)
+		FOR	i := 1	TO	Lge	BY 1 DO
+			j	:=	904	+	i;
+			IF	i	=	1
+				THEN
+					IF		ort[i]	>=	0
+						AND	ort[i]	<=	31999
+						OR	ort[i]	>=	32000
+						AND	ort[i]	<=	32100
+						OR	ort[i]	>=	32757
+						AND	ort[i]	<=	32767
+						THEN
+							st_OUT_Alarms.data[j] := ort[i];
+
+							IF	ort[i]	=	32766
+								THEN
+									IF	i	=	Lge
+										THEN
+											Lge					:=	Lge	+ 2;
+											st_OUT_Alarms.data[901] 	:= 	st_OUT_Alarms.data[901] + 2;
+									END_IF;
+																
+									i	:=	i	+	1;
+									jn	:=	j	+	1;
+									st_OUT_Alarms.data[jn] := ort[i];
+									i	:=	i	+	1;
+									jn	:=	jn	+	1;
+									st_OUT_Alarms.data[jn] := ort[i];
+							END_IF;
+
+					ELSE	st_OUT_Alarms.data[j] := -1;
+					END_IF;
+
+			ELSE	IF		ort[i]	>=	0
+						AND	ort[i]	<=	31999
+						OR 	ort[i]	=	32766
+						THEN
+							st_OUT_Alarms.data[j] := ort[i];
+					
+							IF	ort[i]	=	32766
+								THEN
+									IF	i	=	Lge
+										THEN
+											Lge					:=	Lge	+ 2;
+											st_OUT_Alarms.data[901] 	:= 	st_OUT_Alarms.data[901] + 2;
+									END_IF;
+
+									i	:=	i	+	1;
+									jn	:=	j	+	1;
+									st_OUT_Alarms.data[jn] := ort[i];
+									i	:=	i	+	1;
+									jn	:=	jn	+	1;
+									st_OUT_Alarms.data[jn] := ort[i];
+							END_IF;
+					
+					ELSE	st_OUT_Alarms.data[j] := -1;
+					END_IF;
+			END_IF;
+		END_FOR;
+
+		(*-----------------------------------------------------------------------------------------------*)
+		(*-- Pruefen, ob Nachricht schon eingetragen ist --*)
+		IF		st_OUT_Alarms.BLK_Pointer (* ANZ_MLDG *) = 0
+			THEN	
+				Frg_Eintrag := TRUE;
+		ELSE	Frg_Eintrag := FALSE;
+		END_IF;
+
+		p := 8; (* Anfang erste Meldung *)
+		FOR i := 1 TO st_OUT_Alarms.BLK_Pointer (* ANZ_MLDG *) DO
+			Lge_eingetragene_Mldg := 4 + WORD_TO_INT ( INT_TO_WORD (st_OUT_Alarms.data[p]) AND WORD#16#00FF);
+
+			IF 	 Lge_eingetragene_Mldg <> Lge + 4
+				THEN 
+					Frg_Eintrag := TRUE; 
+
+			ELSE	Nachricht_schon_eingetragen := TRUE;
+					FOR j := 2 TO Lge_eingetragene_Mldg DO
+						p1 := p   + j - 1; (* eingetragene Mldg *)
+						P2 := 901 + j - 1; (* neue Mldg *)	 
+						IF   st_OUT_Alarms.data[p1] <> st_OUT_Alarms.data[p2] 
+						 	THEN 
+								Frg_Eintrag 				:= TRUE;
+							  	Nachricht_schon_eingetragen := FALSE;
+						END_IF;
+					 END_FOR;
+
+					IF	Nachricht_schon_eingetragen 
+						THEN 
+							Grup_eingetragene_Mldg := WORD_TO_INT ( INT_TO_WORD (st_OUT_Alarms.data[p1]) AND WORD#16#3F00);
+							IF  HM_Grup < Grup_eingetragene_Mldg
+								THEN 
+							  		Frg_Eintrag := TRUE;
+							END_IF; 
+					END_IF;
+			END_IF;
+			p := p + Lge_eingetragene_Mldg;
+		END_FOR;
+
+		(*-----------------------------------------------------------------------------------------------*)
+		(*-- Nachricht eintragen --*)
+		IF	Frg_Eintrag 
+			THEN
+				p := st_OUT_Alarms.DSK_Pointer;
+				
+				FOR	i := 1	TO	(Lge+4)	BY 1 DO
+					j				:=	900	+	i;
+					p				:=	st_OUT_Alarms.DSK_Pointer	+	i	-1;
+					st_OUT_Alarms.data[p] := 	st_OUT_Alarms.data[j];
+				END_FOR;
+		
+				st_OUT_Alarms.BLK_Pointer	:=	st_OUT_Alarms.BLK_Pointer + 1 ; 	(* ANZ_MLDG erhoehen *)
+				st_OUT_Alarms.data[7]    	:=	st_OUT_Alarms.BLK_Pointer; 		(* ANZ_MLDG *)
+
+				st_OUT_Alarms.DSK_Pointer := 	st_OUT_Alarms.DSK_Pointer + 4 
+									+ 	Lge;
+				st_OUT_Alarms.Lg_Byte	   := 	(st_OUT_Alarms.DSK_Pointer - 6) * 2;
+		END_IF;
+
+ELSE	qAlarmSent	:=	FALSE;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="Pecom_Write_Alarm">
+      <LineId Id="1066" Count="230" />
+      <LineId Id="246" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

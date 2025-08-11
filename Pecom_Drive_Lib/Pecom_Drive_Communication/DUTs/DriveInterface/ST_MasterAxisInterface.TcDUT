@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_MasterAxisInterface" Id="{1f2708a6-5e23-43b2-aeb6-ff6166d14201}">
+    <Declaration><![CDATA[TYPE ST_MasterAxisInterface :
+STRUCT
+	stDriveMotorInterface_stat		: ST_DriveInterface_Stat;
+	stDriveMotorInterface_ctrl		: ST_DriveInterface_Ctrl;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

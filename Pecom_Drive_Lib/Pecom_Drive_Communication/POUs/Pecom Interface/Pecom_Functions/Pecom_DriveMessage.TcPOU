@@ -1,0 +1,255 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="Pecom_DriveMessage" Id="{e9a6f311-18c4-48f6-8d89-b4e28250e933}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK Pecom_DriveMessage
+VAR_INPUT
+	RemoteMember	:	INT;
+	OBJKNG			:	INT;
+	OBJART			:	INT;
+	OBJGRP			:	INT;
+	OBJEIN			:	INT;
+	OBJLFN			:	INT;
+	OBJLGE			:	INT;
+	SNSTIV_MIN		:	INT;
+	nDataBlockSize	:	INT;
+	Movement_Active	:	BOOL;
+	ParameterNr		:	INT;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR_IN_OUT
+	OBJVAR:	ST_Objekt;
+
+END_VAR
+VAR
+	Old_TLN					:	ARRAY [0..4] OF ARRAY [0..30] OF INT;
+	MAX_ANZ_SEKTIONEN		:	INT := 20;
+	DEFAULT_LST				:	INT	:=	70;
+	DEFAULT_FE				:	INT	:=	2500;
+	DEFAULT_WE				:	INT	:=	5300;
+	SNSTIV_MAX				:	INT	:=	32767;
+
+	bBit_Change_1			:	INT;
+	bBit_Change_2			:	INT;
+	ZYKTME_MIN				:	INT	:=	1;
+	ZYKTME_MAX				:	INT :=	32767;
+	nNumber					:	INT;
+	iw_anf					:	INT;
+	p_art					:	INT;
+	p_anz					:	INT;
+	p_lge					:	INT;
+	p_grp					:	INT;
+	p_ein					:	INT;
+	p_lfn					:	INT;
+	p_dat					:	INT;
+	nMessage_ID				:	INT;	// Kennung
+	nCmd_Number				:	INT;	// Kommando Nummer
+	nCMD_Type				:	INT;	// Kommando Typ
+			
+	sens_nr_start			:	INT;
+	sens_nr_ende			:	INT;
+	ANFTYP					:	INT;	
+	SNSTIV					:	INT;
+	ZYKTME					:	INT;
+	MASEIN					:	INT;
+	nDataCounter				:	INT;
+	nCounterEnd				:	INT;
+	bInserted				:	BOOL;
+	delete_TLN				:	ST_Elements;
+	zyktme_akt				:	INT;
+	obj_cnt					:	INT;
+	counter					: 	UINT;
+	divisor					:	DINT;
+	i						:	INT;
+	k						:	INT;
+	ntestcount: INT;
+	nTestArrayInt			:	ARRAY[0..100] of INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(**********************************************************************************)
+(***  Pecom Object Handling 													***)
+(***  Must be called in the main program like this (eg. Webtension Splicer 110)	***)
+(***                                                                            ***)
+(*** 	The Variables are defined as:											***)
+(*** 	web_tension		: 	ST_Objekt;                                          ***)
+(*** 	web_tension_110	:	Pecom_Message;                                      ***)
+(***                                                                            ***)
+(***  web_tension_110(RemoteMember:=  Config.prod.Zuordnung_zu_LST_Nr,			***)
+(***               OBJART      :=  10506,                                       ***)
+(***               OBJGRP      :=  110,                                         ***)
+(***               OBJEIN      :=  g_stPecomSetup_Machine.RWA_nr,               ***)
+(***               OBJLFN      :=  -1,                                          ***)
+(***               OBJLGE      :=  12,                                          ***)
+(***               OBJVAR      :=  web_tension,                                 ***)
+(***               SNSTIV_MIN  :=  0,                                           ***)
+(***               );                                                           ***)
+(***                                                                            ***)
+(**********************************************************************************)
+
+Write_Out_Message();
+Read_In_Message();
+]]></ST>
+    </Implementation>
+    <Action Name="Read_In_Message" Id="{ce46fb82-24c1-435a-a667-7716a986bca4}">
+      <Implementation>
+        <ST><![CDATA[(* is a message valid ?-*)
+
+OBJVAR.Read_Data := FALSE;  (* only for one cycle *)
+
+IF NOT st_IN_Objects.data_are_valid
+	THEN
+	 	RETURN;
+END_IF;
+
+(* Pointer  *)
+p_art 		:= 	st_IN_Objects.BLK_Pointer;
+p_anz 		:= 	st_IN_Objects.BLK_Pointer + 1;
+p_lge 		:= 	st_IN_Objects.BLK_Pointer + 2;
+p_grp 		:= 	st_IN_Objects.DSK_Pointer;
+p_ein 		:= 	st_IN_Objects.DSK_Pointer + 1;
+p_lfn 		:= 	st_IN_Objects.DSK_Pointer + 2;		
+p_dat 		:= 	st_IN_Objects.DSK_Pointer + 3;	
+
+IF 		st_IN_Objects.KDO =	10921					(* Drive Communication	*)
+	AND st_IN_Objects.data[p_grp]		= 	OBJGRP	(* always needed *)
+	AND (	st_IN_Objects.data[p_art]	= 	OBJART
+		OR 	OBJART = -1)							(* Read All, can be used *)
+	AND (	st_IN_Objects.data[p_ein]	= 	OBJEIN
+		OR 	OBJEIN = -1)							(* Read All,can be used  *)
+	AND (	st_IN_Objects.data[p_lfn]	= 	OBJLFN
+		OR 	OBJLFN = -1)							(* Read All,can be used  *)
+	AND (	RemoteMember 				= -1 		(* Read All,can be used  *)
+		OR 	RemoteMember = 	st_IN_Objects.Sender)
+	AND (	ParameterNr = 	st_IN_Objects.data[15])	(* Specify the parameter from Old Baumüller system eg.1680=Handshake 850=Drivecontrol  *)
+		
+	THEN 
+		OBJVAR.OBJART  := st_IN_Objects.data[p_art];
+		OBJVAR.OBJLGE  := st_IN_Objects.data[p_lge];
+		OBJVAR.OBJGRP  := st_IN_Objects.data[p_grp];
+		OBJVAR.OBJEIN  := st_IN_Objects.data[p_ein];
+		OBJVAR.OBJLFN  := st_IN_Objects.data[p_lfn];
+		OBJVAR.AUFTRAG := INT#0;
+		OBJVAR.TLN[0].flag 		:= TRUE;	
+		OBJVAR.TLN[0].KNG   	:= st_IN_Objects.data[7];
+		OBJVAR.TLN[0].Nummer	:= st_IN_Objects.Sender;
+		OBJVAR.Read_Data 		:= TRUE;		 		
+		obj_cnt 				:= obj_cnt +1;
+	
+		IF 	st_IN_Objects.data[p_lge] > 6   				(* look into the message*)
+			THEN
+				nCounterEnd := (st_IN_Objects.data[p_lge] - INT#6 )/2;
+
+				FOR nDataCounter := 1 TO nCounterEnd DO
+					OBJVAR.In_data[nDataCounter] 	:= 	st_IN_Objects.data[p_dat];
+					p_dat						:=	p_dat+1;
+				END_FOR;
+		END_IF;
+END_IF;
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Write_Out_Message" Id="{0fdf5f95-f860-4ed4-9844-d9a5a2f53cea}">
+      <Implementation>
+        <ST><![CDATA[
+(* Pointer *)
+p_art := st_OUT_Objects.BLK_Pointer;
+p_anz := st_OUT_Objects.BLK_Pointer + 1;
+p_lge := st_OUT_Objects.BLK_Pointer + 2;
+p_grp := st_OUT_Objects.DSK_Pointer;
+p_ein := st_OUT_Objects.DSK_Pointer + 1;
+p_lfn := st_OUT_Objects.DSK_Pointer + 2;
+p_dat := st_OUT_Objects.DSK_Pointer + 3;
+
+IF  	NOT	Movement_Active
+	AND	OBJVAR.TLN[0].flag
+	AND	OBJVAR.TLN[0].Nummer <> 0
+	THEN
+		OBJVAR.KOM_RCK 		:=	TRUE;
+		iw_anf 				:=	0;
+END_IF;
+
+(* build the message*)
+IF		st_OUT_Objects.DSK_Pointer = 12
+	AND ( 	st_OUT_Objects.DSK_Pointer <  st_OUT_Objects.data_Max - OBJLGE / 2
+		AND	OBJLGE > INT#0
+		OR	st_OUT_Objects.DSK_Pointer <  st_OUT_Objects.data_Max - nDataBlockSize / 2)
+	AND NOT st_OUT_Objects.data_are_valid
+	AND	(	OBJVAR.KOM_RCK )
+	THEN
+		st_OUT_Objects.KDO			:=	10922;
+		st_OUT_Objects.receiver 	:=	OBJVAR.TLN[0].Nummer;
+		st_OUT_Objects.Sender		:=	0;
+		st_OUT_Objects.Typ		  	:=	153;
+		st_OUT_Objects.NFB		  	:=	0;
+		st_OUT_Objects.data[7] 	:=	OBJVAR.TLN[0].KNG;		(* this is only a number we must give back *)
+
+		st_OUT_Objects.data[8]     := 1; (* ANZBLK *)
+		st_OUT_Objects.data[p_art] := 300;
+		st_OUT_Objects.data[p_anz] := 1;  (* OBJANZ *)
+		st_OUT_Objects.data[p_lge] := OBJLGE;
+		st_OUT_Objects.data[p_grp] := 2054;
+		st_OUT_Objects.data[p_ein] := OBJVAR.OBJEIN;
+		st_OUT_Objects.data[p_lfn] := OBJVAR.OBJLFN;
+
+		FOR nDataCounter := 1 TO ((OBJLGE-6)/2) DO
+			st_OUT_Objects.data[p_dat] := OBJVAR.Out_data[nDataCounter];
+			p_dat := p_dat+1;
+		END_FOR;
+
+	st_OUT_Objects.DSK_Pointer  := st_OUT_Objects.DSK_Pointer + OBJLGE / 2;
+
+	IF 		st_OUT_Objects.KDO = -432
+			OR	st_OUT_Objects.KDO = INT#256
+	THEN
+			st_OUT_Objects.Lg_Byte := INT#2; (* nur KDO *)
+	ELSE	
+			st_OUT_Objects.Lg_Byte := ( st_OUT_Objects.DSK_Pointer - 6 ) * 2;
+	END_IF;
+
+END_IF;
+
+OBJVAR.TLN[iw_anf].flag	:=	FALSE;
+OBJVAR.Send_Data 	   	:=	TRUE;
+OBJVAR.KOM_RCK			:=	FALSE;
+
+]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="Pecom_DriveMessage">
+      <LineId Id="313" Count="21" />
+      <LineId Id="68" Count="0" />
+    </LineIds>
+    <LineIds Name="Pecom_DriveMessage.Read_In_Message">
+      <LineId Id="0" Count="16" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="65" Count="1" />
+      <LineId Id="68" Count="1" />
+      <LineId Id="71" Count="1" />
+      <LineId Id="280" Count="1" />
+      <LineId Id="279" Count="0" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="76" Count="5" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="143" Count="1" />
+      <LineId Id="147" Count="1" />
+      <LineId Id="150" Count="9" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="194" Count="0" />
+    </LineIds>
+    <LineIds Name="Pecom_DriveMessage.Write_Out_Message">
+      <LineId Id="138" Count="9" />
+      <LineId Id="160" Count="6" />
+      <LineId Id="184" Count="7" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="267" Count="0" />
+      <LineId Id="194" Count="4" />
+      <LineId Id="220" Count="20" />
+      <LineId Id="263" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="247" Count="7" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

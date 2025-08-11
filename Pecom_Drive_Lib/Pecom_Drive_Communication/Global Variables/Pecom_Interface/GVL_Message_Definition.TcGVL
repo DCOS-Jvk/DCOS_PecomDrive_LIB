@@ -1,0 +1,145 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL_Message_Definition" Id="{c4ab143c-75c5-4dc2-b01d-95f9febbefdc}">
+    <Declaration><![CDATA[VAR_GLOBAL
+(*	                    		
+	stDriveControl				: 	ST_Objekt;
+	DriveControl_P850			:	Pecom_DriveMessage;
+	stP1200_DriveCtrl			:	ST_TCP_Parameter;       // 	
+	
+	stResetDrive				: 	ST_Objekt;
+	ResetDrive_P562				:	Pecom_DriveMessage;
+	stP0562_ResetDrive			:	ST_TCP_Parameter;       // 
+		
+	stReadFault					: 	ST_Objekt;
+	ReadFault_P35				:	Pecom_DriveMessage;
+	stP0035_ReadFault			:	ST_TCP_Parameter;       // DINT#0
+		
+	stDirection					: 	ST_Objekt;
+	Direction_P516				:	Pecom_DriveMessage;
+	stP0516_Direction			:	ST_TCP_Parameter;       // 1/-1
+	
+	stSyncSpeed					: 	ST_Objekt;
+	SyncSpeed_P828				:	Pecom_DriveMessage;
+	stP0828_SyncSpeed			:	ST_TCP_Parameter;       // Degree/Second
+		
+	stCircRegSpeedProMill		: 	ST_Objekt;
+	CircRegSpeed_P871			:	Pecom_DriveMessage;
+	stP0871_CircRegSpeed		:	ST_TCP_Parameter;       // Promille
+	
+	stCircRegSpeedDegree		: 	ST_Objekt;
+	CircRegSpeed_P830			:	Pecom_DriveMessage;
+	stP0830_CircRegSpeed		:	ST_TCP_Parameter;       // Degree/Second
+		
+	stCutoffSync_ProMill		: 	ST_Objekt;
+	CutoffSyncSpeed_P872		:	Pecom_DriveMessage;
+	stP0872_CutoffSync_ProMill	:	ST_TCP_Parameter;       // Degree/Second
+		
+	stCutoffSync_Degree			: 	ST_Objekt;
+	CutoffSyncSpeed_P831		:	Pecom_DriveMessage;
+	stP0831_CutoffSync_Degree	:	ST_TCP_Parameter;       // Degree/Second
+		
+	stGearRatio					: 	ST_Objekt;
+	GearRatio_P529				:	Pecom_DriveMessage;
+	stP0529_GearRatio			:	ST_TCP_Parameter;       // numerator 1/2/4 with denominator 10000
+		
+	stI_Square_T				: 	ST_Objekt;
+	I_Square_T_P059				:	Pecom_DriveMessage;
+	stP0059_I_Square_T			:	ST_TCP_Parameter;       // Read I²t 
+		
+	stDriveType					: 	ST_Objekt;				// Common/HA_Steuerung/Parametrierung
+	DriveType_P700				:	Pecom_DriveMessage;
+	stP0700_DriveType			:	ST_TCP_Parameter;       // Defenition of the Sync-Mode to the main Axis
+		
+	stSwitchParameterSet		: 	ST_Objekt;
+	SwitchParameterSet_P401		:	Pecom_DriveMessage;
+	stP0401_SwitchParameterSet	:	ST_TCP_Parameter;       // Changes between 2 parametersets -> 0 or 1
+		
+	stDriveMode					: 	ST_Objekt;
+	DriveMode_P701				:	Pecom_DriveMessage;
+	stP0701_DriveMode			:	ST_TCP_Parameter;       // 13 = Speed regulation, 11 - Position controlled
+	
+	(**************************************)
+	(***  Modul Positioning			  	***)
+	(**************************************)
+	stPositioningMode			: 	ST_Objekt;
+	PositioningMode_P811		:	Pecom_DriveMessage;
+	stP0811_PositioningMode		:	ST_TCP_Parameter;       // Defines in Bits how we do positioning
+	
+	stPositioningDirection		: 	ST_Objekt;
+	PositioningDirection_P731	:	Pecom_DriveMessage;
+	stP731_PositioningDirection	:	ST_TCP_Parameter;       // Defines in Bits how we do positioning
+	
+	stPositioningSetpoint		: 	ST_Objekt;
+	PositioningSetpoint_P732	:	Pecom_DriveMessage;
+	stP732_PositioningSetpoint	:	ST_TCP_Parameter;       // Defines in Bits how we do positioning
+		
+	stPositioning_Act			: 	ST_Objekt;
+	Positioning_Act_P158		:	Pecom_DriveMessage;
+	stP158_Positioning_Act		:	ST_TCP_Parameter;       // Defines in Bits how we do positioning
+	
+	(**************************************)
+	(***  Modul Webtension Control  	***)
+	(**************************************)
+	stWebTc_Mode				: 	ST_Objekt;
+	WebTc_Mode_P1300			:	Pecom_DriveMessage;
+	stP1300_WebTc_Mode			:	ST_TCP_Parameter;       // (Reply is P1301) 11=off, 12=On  , 13=Tempor. Off
+	
+	
+	stWebTc_SpeedGain_SP		: 	ST_Objekt;
+	WebTc_SpeedGain_SP_P1311	:	Pecom_DriveMessage;
+	stP1311_WebTc_SpeedGain_SP	:	ST_TCP_Parameter;       // Speedgain in manual mode in permill * 100 (eg 0.01‰ * 100)
+	
+	stWebTc_SpeedGain_Act		: 	ST_Objekt;
+	WebTc_SpeedGain_Act_P1316	:	Pecom_DriveMessage;
+	stP1316_WebTc_SpeedGain_Act	:	ST_TCP_Parameter;       // Speedgain in manual mode in permill * 100 (eg 0.01‰ * 100)
+	
+	stWebTc_WebTension_SP		: 	ST_Objekt;
+	WebTc_WebTension_SP_P1302	:	Pecom_DriveMessage;
+	stP1302_WebTc_WebTension_SP	:	ST_TCP_Parameter;       // Webtension in N In Automode
+	
+	stWebTc_WebTension_Act		: 	ST_Objekt;
+	WebTc_WebTension_Act_P1304	:	Pecom_DriveMessage;
+	stP1304_WebTc_WebTension_Act:	ST_TCP_Parameter;       // Webtension in N Feedback In Automode
+
+	
+	(******************************************)
+	(***  Modul Position Cam (eg. 3.Folder)	***)
+	(******************************************)	
+	stOffset3Folder				: 	ST_Objekt;
+	Offset3Folder_P1337			:	Pecom_DriveMessage;
+	stP1337_Offset3Folder		:	ST_TCP_Parameter;       // Additional Cutoff between Folder and 3.Folder
+
+	stOffset_Curve_3Folder		: 	ST_Objekt;
+	Offset3_Curve_Folder_P1331	:	Pecom_DriveMessage;
+	stP1331_Offset_Curve_3Folder:	ST_TCP_Parameter;       // Additional offset to the Curve
+
+	stOffset_Degree_3Folder		: 	ST_Objekt;
+	Offset3_Degree_Folder_P1331	:	Pecom_DriveMessage;
+	stP1331_Offset_Degree_3Folder	:	ST_TCP_Parameter;	// Angle of the Curve
+
+	
+	(**********************************************)
+	(***  Modul Offset Position Paddle wheel	***)
+	(**********************************************)		
+	stOffsetPaddleWheel			: 	ST_Objekt;
+	OffsetPaddleWheel_P0825		:	Pecom_DriveMessage;
+	stP0825_OffsetPaddleWheel	:	ST_TCP_Parameter;       // Position Paddle wheel ONLY!!!
+
+
+
+	(**********************************************)
+	(***  Modul Zero Position or Autotune		***)
+	(**********************************************)		
+	stHomingSensor_Status		: 	ST_Objekt;
+	HomingSensor_Status_P283	:	Pecom_DriveMessage;
+	stP0283_HomingSensor_Status	:	ST_TCP_Parameter;       // Fault is Bit #15 AND Input=0 -> Reset Fault
+	
+	stCalibration_Mode			: 	ST_Objekt;
+	Calibration_Mode_P578		:	Pecom_DriveMessage;
+	stP578_Calibration_Mode		:	ST_TCP_Parameter;       // Autotune=22, ZeroPosition=24 else 10
+*)
+
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

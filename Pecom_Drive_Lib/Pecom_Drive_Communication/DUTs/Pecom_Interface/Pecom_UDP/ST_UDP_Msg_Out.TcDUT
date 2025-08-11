@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_UDP_Msg_Out" Id="{1e91a83c-2b2e-4deb-b4af-34c9c8433c3e}">
+    <Declaration><![CDATA[TYPE ST_UDP_Msg_Out :
+	STRUCT
+		nDriveSercos_Id			:	INT;
+		nStatusWord				:	WORD;
+		nActual_speed			:	INT;	// Actual Speed in Rev/10
+		nActual_torque			:	INT;	// Torque in %
+		bHandShake				:	BOOL;	// UDP Bit 0 Handshake
+		bInSync					:	BOOL;	// UDP Bit 6 Drive in Sync
+		bCommandDone			:	BOOL;	// UDP Bit 7 the last Command is executed
+		bDriveFault				:	BOOL;	// UDP Bit 13 Drive has a fault
+		bDriveActive			:	BOOL;	// UDP Bit 14 Drive is active (Enabled and run)
+		bDriveReady				:	BOOL;	// UDP Bit 15 Drive is ready
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

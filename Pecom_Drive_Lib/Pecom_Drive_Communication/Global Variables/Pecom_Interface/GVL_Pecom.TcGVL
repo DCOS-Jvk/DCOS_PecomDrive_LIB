@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL_Pecom" Id="{77baa355-54db-4fdd-9d08-15930f00d170}">
+    <Declaration><![CDATA[VAR_GLOBAL
+	
+	stDrive_Data_arr		:	ARRAY[0..NR_OF_DRIVEMASTERS]	OF ST_UDP_Drive_Data;
+	aTcpPuff				:   ARRAY[0..NR_OF_DRIVEMASTERS] 	OF ST_TCP_Puff;
+	UDP_SERVER_RESET 		: 	BYTE; 			// Set to 0 to close and reopen the UPD Socket (use R_TRIG !!) OK-State is 2
+	
+	stComStatus				:	ST_CommunicationStatus;
+	(* PECOM messages *)
+	st_IN_PecomMsg			:	ST_InOut_Msg;		// The TCP IN Buffer "R_BUF_A.BUFFER[x]" is copied into this Buffer
+	st_OUT_PecomMsg			:	ST_InOut_Msg;		// This Buffer is transfered into the TCP Out Buffer -> "S_BUF_A.BUFFER[x]"
+	st_IN_Objects			:	ST_InOut_Data;		// "st_IN_PecomMsg" are sorted into st_IN_Objects
+	st_OUT_Objects			:	ST_InOut_Data;		// single "st_OUT_Objects" are sorted into "st_OUT_Objects_Buffer" and this finally into "st_OUT_PecomMsg"
+	st_OUT_Objects_Buffer	:	ST_InOut_Data;		// "st_OUT_Objects_Buffer" transfered into "st_OUT_PecomMsg"
+	st_OUT_Alarms			:	ST_InOut_Data;		// struct for Alarm Messages
+	st_OUT_Alarms_Buffer	:	ST_InOut_Data;		// struct Buffer for Alarm Messages
+
+END_VAR
+]]></Declaration>
+  </GVL>
+</TcPlcObject>
