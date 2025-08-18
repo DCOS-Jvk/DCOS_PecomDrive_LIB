@@ -3,6 +3,7 @@
   <POU Name="Pecom_DriveMessage" Id="{e9a6f311-18c4-48f6-8d89-b4e28250e933}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK Pecom_DriveMessage
 VAR_INPUT
+	Command_Nr		:	INT;
 	RemoteMember	:	INT;
 	OBJKNG			:	INT;
 	OBJART			:	INT;

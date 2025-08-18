@@ -7,11 +7,17 @@ STRUCT
 	
 	bEnable					:BOOL;						// set to give power to motor
 	bStartRun				:BOOL;						// set to start motor in slow run
-	fJogVelocity			:LREAL;						// selected speed for slow run, if = 0 then use default vel
-	nJogAcceleration		:INT;						// Acceleration in Local mode
+	fVelocity				:LREAL;						// selected speed for slow run, if = 0 then use default vel
+	fAcceleration			:LREAL;						// Acceleration in Local mode
 	
 	// Cutoff and Speedgain
 	fCutoffValue			:ARRAY[0..31] OF LREAL;		// Cutoff for each DriveGroup (equals the web number )
+	
+	// Aray of Cutoff values for each group
+	aGroup_Cutoff			:	ARRAY[0..15] OF LREAL;	// Cutoff from SKS for each web Group
+	
+	// Each Bit represents a group which is doing a webbing up. Only drives in this group are turning
+	aGroup_WebUpDrives		:	ARRAY[0..15] OF BOOL;	// Group which is involved in a webup			
 	
 END_STRUCT
 END_TYPE

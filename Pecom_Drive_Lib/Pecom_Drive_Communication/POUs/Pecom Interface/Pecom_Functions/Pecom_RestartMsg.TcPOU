@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="Pecom_RestartMsg" Id="{74526620-e56e-0d44-39bd-705095d36781}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK Pecom_RestartMsg
+VAR_INPUT
+	iRemoteMemberNr	:	INT;
+	iReConnect : BOOL;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	TON_neustartmeldg		:	TON;
+	neustart_lst			:	BOOL;
+	neustart_lst_aktiv		:	BOOL;
+	FB_SendRestartMsg		:	Pecom_DriveMessage;
+	Objekt256_lsr			:	ST_Objekt;
+	R_TRIG_Reconnect		: R_TRIG;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(*-- Neustart an LST --*)
+R_TRIG_Reconnect(CLK:=iReConnect);
+IF R_TRIG_Reconnect.Q THEN
+	neustart_lst := TRUE;
+END_IF
+
+
+TON_neustartmeldg(IN:=  neustart_lst, PT  :=  T#10S);
+TON_neustartmeldg.ET;
+
+
+IF TON_neustartmeldg.Q
+THEN
+    Objekt256_lsr.AKTIV := TRUE;
+    neustart_lst := FALSE;
+END_IF;
+(*------------------------------------------------------------------------------------------*)
+
+
+FB_SendRestartMsg (	Command_Nr 	:= INT#256,
+					RemoteMember	:= LST,
+					OBJGRP 		:= INT#0,
+					OBJLGE 		:= 8, 
+					OBJVAR 		:= Objekt256_lsr);
+
+
+IF Objekt256_lsr.Read_Data
+THEN
+    ;
+END_IF;
+
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="Pecom_RestartMsg">
+      <LineId Id="171" Count="32" />
+      <LineId Id="64" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

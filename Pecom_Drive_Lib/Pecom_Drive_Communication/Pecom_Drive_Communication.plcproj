@@ -22,6 +22,17 @@
     <ProjectVersion>1.0.0</ProjectVersion>
     <Description>Function for Drive Communication to manroland presses replacing Baumueller Drive systems</Description>
     <Author>DCOS</Author>
+    <CombineIds>true</CombineIds>
+    <LibraryCategories>
+      <LibraryCategory xmlns="">
+        <Id>{fcd88a4d-6699-4ca3-8b30-f35b13335236}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>DCOS</DefaultName>
+      </LibraryCategory>
+    </LibraryCategories>
+    <SelectedLibraryCategories>
+      <Id xmlns="">{fcd88a4d-6699-4ca3-8b30-f35b13335236}</Id>
+    </SelectedLibraryCategories>
   </PropertyGroup>
   <ItemGroup>
     <None Include="Pecom_Drive_Communication.tmc">
@@ -54,16 +65,10 @@
     <Compile Include="DUTs\DriveInterface\ST_DriveInterface.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\DriveInterface\ST_MasterAxisInterface.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="DUTs\DriveInterface\ST_DriveInterface_Ctrl.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DUTs\DriveInterface\ST_DriveInterface_Stat.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\DriveInterface\ST_TCP_Parameter.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DUTs\MainAxis_Interface\ST_MainAxisInterface_Ctrl.TcDUT">
@@ -138,15 +143,14 @@
     <Compile Include="DUTs\ST_Alarm.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\ST_TCP_Parameter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Global Variables\Pecom_Interface\GVL_ConnectionAlarms.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="Global Variables\Pecom_Interface\GVL_FB.TcGVL">
-      <SubType>Code</SubType>
-      <LinkAlways>true</LinkAlways>
-    </Compile>
-    <Compile Include="Global Variables\Pecom_Interface\GVL_Message_Definition.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
@@ -219,6 +223,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\UDFB\DWORD_OF_BYTE.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\UDFB\FC_Time_To_Ramp.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\UDFB\WORD_OF_BYTE.TcPOU">

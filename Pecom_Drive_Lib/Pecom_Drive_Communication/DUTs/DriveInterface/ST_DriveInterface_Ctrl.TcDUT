@@ -10,8 +10,8 @@ STRUCT
 	bEnable					:BOOL;				// set to give power to motor
 	bStartRun				:BOOL;				// set to start motor in slow run
 	bRunRev					:BOOL;				// Direction -> set to run motor in rev direcition
-	fJogVelocity			:LREAL;				// selected speed for slow run, if = 0 then use default vel
-	nJogAcceleration		:INT;				// Acceleration in Local mode
+	fVelocity				:LREAL;				// selected speed for slow run, if = 0 then use default vel
+	fAcceleration			:LREAL;				// Acceleration in Local mode
 	nGearRatio				:INT;				// For 3.Folder -> 2 or 1 ; For Paddlewheel 10000 or 20000 depends on Collect or straight!!
 	// Cutoff and Speedgain
 	fSyncValue				:LREAL;				// relative value to the master where motor will clutch into
@@ -28,7 +28,9 @@ STRUCT
 	n3Folder_Degree_Curve	:LREAL;				// 3.Folder -> steepness of the speed curve
 	
 	// Sync Mode and Sync Speed
-	nDriveSyncMode			:WORD;				// describes how the drive syncs to the shaft -> Used for Folder Drives!!
+	bDriveSyncMode_FW		:BOOL;				// Sync Forward --> Syncronisation-Speed can be any speed 
+	bDriveSyncMode_BW		:BOOL;				// Sync Backward --> Syncronisation-Speed must be < Machine speed exept N= 0 !!!
+	bDriveSyncMode_SW		:BOOL;				// Sync Shortest way --> Syncronisation-Speed must be < Machine speed exept N= 0 !!!
 	fSyncSpeed				:LREAL;				// set to desired sync offset speed Degree/sec for sync to Main Axis
 	fSpeedCR_Permill		:LREAL;				// For PU only!! -> 100.0000 Promill OR 0.0400 Promill
 	fSpeedCR_DegreeS		:LREAL;				// For Folder only!! -> 20,0000 Degree/sec OR 1,0000 Degree/sec

@@ -22,7 +22,7 @@ STRUCT
 	//Positioning Mode
     bAtModPos			:BOOL;			// set when in modulated position mode and at required pos	
 	fActPos				:LREAL;			// actual modulated position, units
-	
+	fSyncPosDifference	:LREAL;			// Difference of the MainAxis to the local Position
 	// Webtension Control Mode 
 	fWebTc_SpeedGain	:LREAL;		// WebTc	-> Speedgain in manual mode in permill * 100 (eg 0.01‰ * 100)
 	fWebTc_WebTension	:LREAL;		// WebTc	-> Webtension in N In Automode
