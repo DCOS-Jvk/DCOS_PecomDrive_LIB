@@ -4,16 +4,29 @@
     <Declaration><![CDATA[PROGRAM PB_Start_UDP
 VAR_INPUT
 	iResetUDP_Com		: BOOL;
-	sLocal_IP			: T_IPv4Addr;			// IP-Adress of the the local Ethernetport where we want to listen/Send
 END_VAR
 	
 VAR
-	IP_UDP_Server		: IP_C;
+	IP_UDP_Server		: ARRAY[1..NR_OF_DRIVEMASTERS] OF IP_C;
+	FB_UDP_Server		: ARRAY[1..NR_OF_DRIVEMASTERS] OF FB_UDP_Server;	
+	S_BUF_UDP			: ARRAY[1..NR_OF_DRIVEMASTERS] OF ST_UDP_Buffer;		// UDP Send Buffer It is hand over to the UDP Socket 
+	R_BUF_UDP			: ARRAY[1..NR_OF_DRIVEMASTERS] OF ST_UDP_Buffer;		// UDP Receive Buffer It comes from the UDP Socket
+
+
+	IP_UDP_Server_1		: IP_C;
 	FB_UDP_Server_1		: FB_UDP_Server;	
+	S_BUF_UDP_1			: ST_UDP_Buffer;		// UDP Send Buffer It is hand over to the UDP Socket 
+	R_BUF_UDP_1			: ST_UDP_Buffer;		// UDP Receive Buffer It comes from the UDP Socket
+                          
+	IP_UDP_Server_2		: IP_C;
+	FB_UDP_Server_2		: FB_UDP_Server;	
+	S_BUF_UDP_2			: ST_UDP_Buffer;		// UDP Send Buffer It is hand over to the UDP Socket 
+	R_BUF_UDP_2			: ST_UDP_Buffer;		// UDP Receive Buffer It comes from the UDP Socket
 	
-	S_BUF_UDP			: ST_UDP_Buffer;		// UDP Send Buffer It is hand over to the UDP Socket 
-	R_BUF_UDP			: ST_UDP_Buffer;		// UDP Receive Buffer It comes from the UDP Socket 	
+	
+	
 	i: INT;
+	nCounter: DINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -23,50 +36,105 @@ END_VAR
 (***** 																						*****)
 (************************************************************************************************)
 
+(*
+	(***** UDP Server Start Listen 	******)
+	IP_UDP_Server_1.C_ENABLE 	:= NOT iResetUDP_Com;	
+	FB_UDP_Server_1(PORT		:= WORD#8101,
+					sLocal_IP	:= '172.25.9.5',	// Important if you have more ethernet devices on your plc
+					TIME_OUT	:= T#10S,
+					IP_C		:= IP_UDP_Server_1,				// Ip settings
+					S_BUF		:= S_BUF_UDP_1,
+					R_BUF		:= R_BUF_UDP_1);
+	
+	IP_UDP_Server_1.ERROR;
+	IP_UDP_Server_1.C_STATE;	
+	IP_UDP_Server_1.TIME_RESET	:= iResetUDP_Com;
+
+
+	FB_UDP_Connection_arr[5](	sRemote_IP		:= stSetup_DriveCom[5].sRemoteIP, 		// '172.25.4.1', 
+								nDriveMemberNr	:= stSetup_DriveCom[5].nDriveMemberNr, 	// 2101, 
+								nPLCMemberNr	:= stSetup_DriveCom[5].nPLCMemberNr,	// 5001, 
+								p_UDP_DriveData	:= ADR(stDrive_Data_arr[5]), 
+								S_BUF			:= ADR(S_BUF_UDP_1),
+								R_BUF			:= ADR(R_BUF_UDP_1), 
+								bAlarmNoConnection=> bAlarm_NoUDP_Connection[5]);
+
+	(***** UDP Server Start Listen 	******)
+	IP_UDP_Server_2.C_ENABLE 	:= NOT iResetUDP_Com;	
+	FB_UDP_Server_2(PORT		:= WORD#8101,
+					sLocal_IP	:= '172.25.9.6',	// Important if you have more ethernet devices on your plc
+					TIME_OUT	:= T#10S,
+					IP_C		:= IP_UDP_Server_2,				// Ip settings
+					S_BUF		:= S_BUF_UDP_2,
+					R_BUF		:= R_BUF_UDP_2);
+	
+	IP_UDP_Server_2.ERROR;
+	IP_UDP_Server_2.C_STATE;	
+	IP_UDP_Server_2.TIME_RESET	:= iResetUDP_Com;
+
+
+	FB_UDP_Connection_arr[6](	sRemote_IP		:= stSetup_DriveCom[6].sRemoteIP, 		// '172.25.4.1', 
+								nDriveMemberNr	:= stSetup_DriveCom[6].nDriveMemberNr, 	// 2101, 
+								nPLCMemberNr	:= stSetup_DriveCom[6].nPLCMemberNr,	// 5001, 
+								p_UDP_DriveData	:= ADR(stDrive_Data_arr[6]), 
+								S_BUF			:= ADR(S_BUF_UDP_2),
+								R_BUF			:= ADR(R_BUF_UDP_2), 
+								bAlarmNoConnection=> bAlarm_NoUDP_Connection[6]);
+*)
 
 (*************************************)
 (***** UDP Server Start Listen 	******)
 (*************************************)
-	IP_UDP_Server.C_ENABLE 	:= NOT iResetUDP_Com;
+
+FOR i := 1 TO NR_OF_DRIVEMASTERS DO 	
 	
-	FB_UDP_Server_1(PORT		:= WORD#8101,
-					sLocal_IP	:= sLocal_IP,			// Important if you have more ethernet devices on your plc
+	(***** UDP Server Start Listen 	******)
+	IP_UDP_Server[i].C_ENABLE 	:= NOT iResetUDP_Com;	
+	FB_UDP_Server[i](PORT		:= WORD#8101,
+					sLocal_IP	:= stSetup_DriveCom[i].sLocalIP,	// Important if you have more ethernet devices on your plc
 					TIME_OUT	:= T#10S,
-					IP_C		:= IP_UDP_Server,		// Ip settings
-					S_BUF		:= S_BUF_UDP,
-					R_BUF		:= R_BUF_UDP);
+					IP_C		:= IP_UDP_Server[i],				// Ip settings
+					S_BUF		:= S_BUF_UDP[i],
+					R_BUF		:= R_BUF_UDP[i]);
 	
-	IP_UDP_Server.ERROR;
-	IP_UDP_Server.C_STATE;
-
+	IP_UDP_Server[i].ERROR;
+	IP_UDP_Server[i].C_STATE;	
+	IP_UDP_Server[i].TIME_RESET	:= iResetUDP_Com;
 	
-
-(*****************************************)
-(***	Single Unit Drive Masters MDS	**)
-(*****************************************)
-FOR i := 1 TO NR_OF_DRIVEMASTERS DO 
-FB_UDP_Connection_arr[i](	sRemote_IP		:= stSetup_DriveCom[i].sRemoteIP, 		// '172.25.4.1', 
-							nDriveMemberNr	:= stSetup_DriveCom[i].nDriveMemberNr, 	// 2101, 
-							nPLCMemberNr	:= stSetup_DriveCom[i].nPLCMemberNr,	// 5001, 
-							p_UDP_DriveData	:= ADR(stDrive_Data_arr[i]), 
-							S_BUF			:= ADR(S_BUF_UDP),
-							R_BUF			:= ADR(R_BUF_UDP), 
-							bAlarmNoConnection=> bAlarm_NoUDP_Connection[i]);
+	(*** read the Buffer into the UPD Drive array  ***)
+	FB_UDP_Connection_arr[i](	sRemote_IP		:= stSetup_DriveCom[i].sRemoteIP, 		// '172.25.4.1', 
+								nDriveMemberNr	:= stSetup_DriveCom[i].nDriveMemberNr, 	// 2101, 
+								nPLCMemberNr	:= stSetup_DriveCom[i].nPLCMemberNr,	// 5001, 
+								p_UDP_DriveData	:= ADR(stDrive_Data_arr[i]), 
+								S_BUF			:= ADR(S_BUF_UDP[i]),
+								R_BUF			:= ADR(R_BUF_UDP[i]), 
+								bAlarmNoConnection=> bAlarm_NoUDP_Connection[i]);
 END_FOR
-							
-						]]></ST>
+					]]></ST>
     </Implementation>
     <LineIds Name="PB_Start_UDP">
       <LineId Id="6" Count="3" />
       <LineId Id="5" Count="0" />
-      <LineId Id="11" Count="14" />
-      <LineId Id="10" Count="0" />
-      <LineId Id="35" Count="0" />
-      <LineId Id="76" Count="4" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="280" Count="0" />
+      <LineId Id="287" Count="10" />
+      <LineId Id="281" Count="2" />
+      <LineId Id="298" Count="6" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="305" Count="19" />
+      <LineId Id="285" Count="1" />
+      <LineId Id="12" Count="3" />
+      <LineId Id="180" Count="0" />
       <LineId Id="122" Count="0" />
+      <LineId Id="261" Count="0" />
+      <LineId Id="250" Count="9" />
+      <LineId Id="246" Count="0" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="248" Count="0" />
+      <LineId Id="247" Count="0" />
       <LineId Id="81" Count="6" />
       <LineId Id="38" Count="0" />
-      <LineId Id="74" Count="1" />
+      <LineId Id="75" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>
